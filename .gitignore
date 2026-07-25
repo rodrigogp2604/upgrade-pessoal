@@ -1,0 +1,27 @@
+# deps
+node_modules/
+**/node_modules/
+
+# builds
+dist/
+**/dist/
+api/public/
+
+# dados pessoais (o banco e as provas NÃO vão pro git)
+data/*.db
+data/*.db-journal
+data/uploads/
+
+# ambiente
+.env
+**/.env
+*.local
+.claude/settings.local.json
+
+# backups locais (inclui o histórico git da era pessoal)
+backups/
+
+# logs / sistema
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,21 @@
+{
+  "name": "upgrade-pessoal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "RPG local de progressão de carreira e finanças — missões com XP, Torre estilo SAO, dívidas como chefões e um mestre de jogo de IA (Claude) operando via API local.",
+  "workspaces": [
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w api\" \"npm run dev -w web\"",
+    "dev:api": "npm run dev -w api",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w api && npm run build -w web",
+    "db:seed": "npm run seed -w api",
+    "db:studio": "npm run studio -w api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

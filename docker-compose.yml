@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    image: upgrade-pessoal
+    container_name: upgrade-pessoal
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/data/upgrade.db
+      - UPLOAD_DIR=/app/data/uploads
+      - PORT=4000
+    volumes:
+      # persiste banco e provas na máquina — backup = copiar a pasta ./data
+      - ./data:/app/data
+    restart: unless-stopped
