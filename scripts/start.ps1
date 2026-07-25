@@ -61,7 +61,10 @@ Write-Host ""
 Write-Host "📦 Subindo o painel (a 1ª vez builda a imagem e demora alguns minutos)..." -ForegroundColor Cyan
 Write-Host ""
 
-docker compose up -d
+# --build de propósito: se o código não mudou, o cache resolve em segundos;
+# se mudou, garante que a imagem acompanha (evita "imagem velha × banco novo",
+# que faria o Prisma abortar para não perder dados).
+docker compose up -d --build
 if ($LASTEXITCODE -ne 0) {
   Write-Host ""
   Write-Host "--- últimas linhas do log ---" -ForegroundColor DarkGray
