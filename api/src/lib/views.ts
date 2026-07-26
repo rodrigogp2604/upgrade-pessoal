@@ -30,6 +30,25 @@ export function characterView(c: CharacterRow, streak: number, ladder: TitleRow[
   };
 }
 
+type AttachmentRow = {
+  id: number;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  createdAt: Date;
+};
+
+export function attachmentView(a: AttachmentRow) {
+  return {
+    id: a.id,
+    originalName: a.originalName,
+    mimeType: a.mimeType,
+    size: a.size,
+    createdAt: a.createdAt,
+    url: `/api/attachments/${a.id}/download`,
+  };
+}
+
 type MissionRow = {
   id: number;
   order: number;
@@ -41,7 +60,7 @@ type MissionRow = {
   status: string;
   rating: number | null;
   completedAt: Date | null;
-  attachments?: { id: number; originalName: string; mimeType: string; size: number; createdAt: Date }[];
+  attachments?: AttachmentRow[];
 };
 
 export function missionView(m: MissionRow) {
@@ -56,14 +75,7 @@ export function missionView(m: MissionRow) {
     status: m.status,
     rating: m.rating,
     completedAt: m.completedAt,
-    attachments: (m.attachments ?? []).map((a) => ({
-      id: a.id,
-      originalName: a.originalName,
-      mimeType: a.mimeType,
-      size: a.size,
-      createdAt: a.createdAt,
-      url: `/api/attachments/${a.id}/download`,
-    })),
+    attachments: (m.attachments ?? []).map(attachmentView),
   };
 }
 

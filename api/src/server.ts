@@ -10,6 +10,7 @@ import { attachmentsRouter } from "./routes/attachments";
 import { settingsRouter } from "./routes/settings";
 import { briefingRouter } from "./routes/briefing";
 import { titlesRouter } from "./routes/titles";
+import { errorHandler } from "./lib/http";
 
 export function createApp() {
   const app = express();
@@ -32,6 +33,9 @@ export function createApp() {
     app.use(express.static(publicDir));
     app.get("*", (_req, res) => res.sendFile(path.join(publicDir, "index.html")));
   }
+
+  // por último: traduz AppError dos services em status + json
+  app.use(errorHandler);
 
   return app;
 }

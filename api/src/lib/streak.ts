@@ -4,15 +4,7 @@ export function isoDay(d = new Date()): string {
   return d.toISOString().slice(0, 10);
 }
 
-// Registra o check-in de hoje (idempotente).
-export async function recordVisit(): Promise<void> {
-  const date = isoDay();
-  await prisma.visit.upsert({
-    where: { date },
-    update: {},
-    create: { date },
-  });
-}
+// O check-in em si mora em services/visits.service.ts (o celular também marca visita).
 
 // Streak = dias consecutivos com check-in terminando hoje.
 export async function currentStreak(): Promise<number> {
