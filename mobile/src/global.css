@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tokens do protótipo "Upgrade Pessoal Mobile.dc.html".
+   Em RGB separado por espaço porque o Tailwind precisa disso para aplicar opacidade
+   (`bg-card/70`). O tema escuro só sobrescreve as variáveis — nenhum componente
+   precisa saber que existe tema. */
+:root {
+  --bg1: 246 244 239;
+  --bg2: 236 232 225;
+  --bg3: 227 222 213;
+  --ink: 43 43 43;
+  --ink2: 122 116 108;
+  --ink3: 138 132 124;
+  --faint: 164 157 149;
+  --faint2: 184 177 168;
+  --accentInk: 196 125 14;
+  --card: 255 255 255;
+  --cardLine: 236 232 225;
+  --surf: 252 251 248;
+  --surf2: 250 249 245;
+  --line: 226 221 213;
+  --soft: 248 246 241;
+  --track: 239 236 230;
+  --field: 255 255 255;
+  --panel: 43 43 43;
+  --panelLine: 43 43 43;
+  --panelInk: 255 255 255;
+  --panelMute: 201 194 186;
+  --panelFaint: 138 132 124;
+  --amberSoft: 253 243 224;
+  --navBg: 255 255 255;
+  --toast: 43 43 43;
+  --hexFill: 248 246 241;
+  --hexGrid: 236 232 225;
+  --dot: 43 43 43;
+  --danger: 192 57 43;
+}
+
+.dark:root {
+  --bg1: 30 28 26;
+  --bg2: 23 22 20;
+  --bg3: 16 15 14;
+  --ink: 240 236 228;
+  --ink2: 179 172 161;
+  --ink3: 143 136 125;
+  --faint: 125 118 108;
+  --faint2: 97 91 82;
+  --accentInk: 242 164 28;
+  --card: 38 35 32;
+  --cardLine: 55 51 45;
+  --surf: 33 31 28;
+  --surf2: 31 29 26;
+  --line: 55 51 45;
+  --soft: 32 30 27;
+  --track: 51 47 42;
+  --field: 27 25 23;
+  --panel: 14 13 12;
+  --panelLine: 49 45 40;
+  --panelInk: 240 236 228;
+  --panelMute: 169 162 154;
+  --panelFaint: 125 118 108;
+  --amberSoft: 45 36 20;
+  --navBg: 20 19 17;
+  --toast: 14 13 12;
+  --hexFill: 33 31 28;
+  --hexGrid: 51 47 42;
+  --dot: 240 236 228;
+  --danger: 231 76 60;
+}

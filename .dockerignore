@@ -2,6 +2,8 @@
 **/dist
 api/public
 data
+# o app React Native não entra na imagem do servidor (o Dockerfile faz COPY . .)
+mobile
 .git
 *.log
 painel.html
