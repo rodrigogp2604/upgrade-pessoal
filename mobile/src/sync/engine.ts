@@ -9,7 +9,7 @@ import { hello, ping, pull, push, SyncError, type OpParaEnviar, type ResultadoOp
 import { deviceId, deviceName, lerPareamento } from "./pairing";
 import { discard, markApplied, markConflict, markError, pendingOps, type OutboxRow } from "@/db/outbox";
 import { reverterCriacaoLocal } from "@/db/mutations";
-import { getSyncState } from "@/db/repo";
+import { getSyncState, setSyncState } from "@/db/repo";
 
 export type Estado = "nao_pareado" | "offline" | "sincronizando" | "ok" | "conflitos" | "erro";
 
@@ -102,9 +102,13 @@ export async function sincronizar(db: SQLiteDatabase): Promise<Resultado> {
   }
 
   try {
-    const cursor = precisaPullCompleto ? null : await getSyncState(db, "cursor");
+    // "escolhi o PC" na tela de conflitos também pede a verdade inteira de volta
+    const pedidoNaTela = (await getSyncState(db, "fullPullNext")) === "1";
+    const cursor = precisaPullCompleto || pedidoNaTela ? null : await getSyncState(db, "cursor");
+
     const resposta = await pull(pareamento, dev, cursor);
     await aplicarPull(db, resposta);
+    if (pedidoNaTela) await setSyncState(db, "fullPullNext", "0");
     return { estado: conflitos > 0 ? "conflitos" : "ok", enviadas, conflitos, recusadas, baixou: true };
   } catch (e) {
     const erro = e as SyncError;
@@ -124,7 +128,12 @@ async function prepararOp(
 ): Promise<{ row: OutboxRow; op: OpParaEnviar; localId?: number } | null> {
   const payload = JSON.parse(row.payload) as Record<string, unknown>;
   const localId = typeof payload._localId === "number" ? (payload._localId as number) : undefined;
-  delete payload._localId;
+  const force = payload._force === true;
+
+  // campos com "_" são combinados internos do app; nunca vão para a rede
+  for (const chave of Object.keys(payload)) {
+    if (chave.startsWith("_")) delete payload[chave];
+  }
 
   if (row.type === "payment.create" && typeof payload.debtId === "number" && (payload.debtId as number) < 0) {
     const real = await idServidorDe(db, "debts", payload.debtId as number);
@@ -140,6 +149,7 @@ async function prepararOp(
       type: row.type,
       base: row.base ? JSON.parse(row.base) : undefined,
       payload,
+      ...(force ? { force: true } : {}),
     },
   };
 }

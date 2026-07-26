@@ -11,6 +11,10 @@ import { pendingOps } from "@/db/outbox";
 import { completeMissionLocal, createDebtLocal, payDebtLocal, addExtraLocal } from "@/db/mutations";
 import { salvarPareamento, trocarHost } from "@/sync/pairing";
 import { sincronizar } from "@/sync/engine";
+import { resolver } from "@/db/conflicts";
+
+/** pega o opId do primeiro (e único) conflito da lista */
+const conflitos0 = (linhas: { opId: string }[]) => linhas[0]?.opId ?? "";
 
 const BASE = "http://127.0.0.1:4123";
 const requireFromApi = createRequire("C:/Users/rodri/Projetos/upgrade-pessoal/api/package.json");
@@ -100,16 +104,43 @@ const missaoConflito = await prisma.mission.findUnique({ where: { id: outra.id }
 ok("o PC continua com a versão dele", missaoConflito.status === "pending");
 ok("a operação saiu da fila de envio", (await pendingOps(db)).length === 0);
 
+secao("resolver conflito: 'usar celular' aplica à força");
+await resolver(db, conflitos0(await db.getAllAsync<{ opId: string }>("SELECT opId FROM conflicts")), "celular");
+r = await sincronizar(db);
+ok("a operação forçada subiu", r.enviadas === 1, JSON.stringify(r));
+const missaoForcada = await prisma.mission.findUnique({ where: { id: outra.id } });
+ok("o PC aceitou a versão do celular", missaoForcada.status === "done", missaoForcada.status);
+ok("lista de conflitos esvaziou", (await db.getAllAsync("SELECT * FROM conflicts")).length === 0);
+
+secao("resolver conflito: 'usar PC' descarta e traz a verdade de lá");
+const terceira = (await loadGameData(db))!.missions.find((m) => m.status === "pending")!;
+await completeMissionLocal(db, terceira.id);
+await new Promise((s) => setTimeout(s, 1100));
+await prisma.mission.update({ where: { id: terceira.id }, data: { title: terceira.title } });
+r = await sincronizar(db);
+ok("gerou o conflito", r.conflitos === 1, JSON.stringify(r));
+ok("no celular a missão ainda aparece concluída", (await loadGameData(db))!.missions.find((m) => m.id === terceira.id)!.status === "done");
+
+await resolver(db, conflitos0(await db.getAllAsync<{ opId: string }>("SELECT opId FROM conflicts")), "pc");
+r = await sincronizar(db);
+const depoisDoPc = (await loadGameData(db))!;
+ok("o celular volta para a versão do PC", depoisDoPc.missions.find((m) => m.id === terceira.id)!.status === "pending");
+ok("XP do celular bate com o do PC", depoisDoPc.character.xp === (await prisma.character.findUnique({ where: { id: 1 } })).xp, `${depoisDoPc.character.xp}`);
+ok("nada ficou preso na fila", (await pendingOps(db)).length === 0);
+ok("conflitos zerados", (await db.getAllAsync("SELECT * FROM conflicts")).length === 0);
+
 secao("arco fechado: operação recusada, não fica tentando para sempre");
 const arco = await prisma.week.findFirst({ where: { status: "active" } });
 const maisUma = (await loadGameData(db))!.missions.find((m) => m.status === "pending" && m.id !== outra.id)!;
 await completeMissionLocal(db, maisUma.id);
+const opRecusada = (await pendingOps(db, 1))[0].opId;
 await prisma.week.update({ where: { id: arco.id }, data: { status: "closed" } });
 
 r = await sincronizar(db);
 ok("servidor recusou", r.recusadas === 1, JSON.stringify(r));
 const recusada = await db.getFirstAsync<{ status: string; lastError: string }>(
-  "SELECT status, lastError FROM outbox WHERE status = 'discarded'"
+  "SELECT status, lastError FROM outbox WHERE opId = ?",
+  opRecusada
 );
 ok("motivo registrado como week_closed", recusada?.lastError === "week_closed", JSON.stringify(recusada));
 const depoisDoPull = (await loadGameData(db))!.missions.find((m) => m.id === maisUma.id)!;

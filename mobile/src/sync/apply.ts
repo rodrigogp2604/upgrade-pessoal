@@ -8,8 +8,22 @@ import { setSyncState } from "@/db/repo";
 export async function aplicarPull(db: SQLiteDatabase, resposta: PullResposta): Promise<void> {
   const c = resposta.changes;
 
+  // Registros com conflito aberto ficam de fora: a promessa é que nada seja sobrescrito
+  // sem o usuário ver. Se o pull aplicasse a versão do PC aqui, a missão que você concluiu
+  // no ônibus voltaria a "pendente" na tela enquanto o card ainda pergunta qual lado vale.
+  // Ao resolver, a linha sai desta lista e o próximo pull aplica normalmente.
+  const emConflito = await db.getAllAsync<{ entity: string; entityId: string }>(
+    "SELECT entity, entityId FROM conflicts"
+  );
+  const travado = (entidade: string, id: number | string) =>
+    emConflito.some((k) => k.entity === entidade && k.entityId === String(id));
+
+  // Conflito de missão mexe com XP: aplicar o personagem do servidor enquanto a missão
+  // segue "concluída" na tela deixaria a conta visivelmente errada (feita, mas sem XP).
+  const congelarPersonagem = emConflito.some((k) => k.entity === "mission");
+
   await db.withTransactionAsync(async () => {
-    if (c.character) {
+    if (c.character && !congelarPersonagem) {
       await db.runAsync(
         `INSERT INTO character (id, name, xp, stats, updatedAt) VALUES (1, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET name = excluded.name, xp = excluded.xp,
@@ -41,6 +55,7 @@ export async function aplicarPull(db: SQLiteDatabase, resposta: PullResposta): P
     }
 
     for (const m of c.missions) {
+      if (travado("mission", m.id)) continue;
       await db.runAsync(
         `INSERT INTO missions (id, weekId, "order", kind, title, description, bonus, xp, statGains, status, rating, completedAt, updatedAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -95,6 +110,7 @@ export async function aplicarPull(db: SQLiteDatabase, resposta: PullResposta): P
     }
 
     for (const s of c.settings) {
+      if (travado("setting", s.key)) continue;
       await db.runAsync(
         `INSERT INTO settings (key, value, updatedAt) VALUES (?, ?, ?)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = excluded.updatedAt`,
