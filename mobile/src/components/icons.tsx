@@ -125,7 +125,13 @@ export const IncomeTabIcon = ({ size = 21, color }: P & { color: string }) => (
   </Svg>
 );
 
-// nuvem do estado de sincronização (entra em ação na Fase 6)
+export const RefreshIcon = ({ size = 15, color = "#fff" }: P) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5" {...traco(color)} />
+  </Svg>
+);
+
+// nuvem do estado de sincronização
 export const CloudIcon = ({ size = 15, color = "#8a847c" }: P) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 12 3.5 3.5 0 0 0 5 19Z" {...traco(color)} />

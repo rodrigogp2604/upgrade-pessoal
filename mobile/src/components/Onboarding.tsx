@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { useGame } from "@/game/useGame";
 import { seedDev, wipeLocal } from "@/db/devSeed";
@@ -8,6 +9,7 @@ import { useAppTheme } from "@/theme/useAppTheme";
 // O app nasce vazio de propósito: quem enche é o pull do PC. Esta é a tela até lá.
 export function Onboarding() {
   const db = useSQLiteContext();
+  const router = useRouter();
   const { palette } = useAppTheme();
   const { recarregar } = useGame();
 
@@ -26,7 +28,14 @@ export function Onboarding() {
         <Text className="font-semibold text-accentInk">Parear celular</Text> e aponte a câmera para o QR.
       </Text>
 
-      <Text className="mt-3 text-center font-sans text-[11.5px] leading-[17px] text-faint">
+      <Pressable
+        onPress={() => router.push("/parear")}
+        className="mt-5 w-full items-center rounded bg-accent py-3.5 active:scale-[0.99]"
+      >
+        <Text className="font-display text-[15px] tracking-[1.4px] text-white">LER O QR DO PAINEL</Text>
+      </Pressable>
+
+      <Text className="mt-4 text-center font-sans text-[11.5px] leading-[17px] text-faint">
         Depois do pareamento tudo funciona sem internet: as missões, as provas e os ataques
         ficam guardados aqui e sobem quando você voltar para a mesma rede.
       </Text>

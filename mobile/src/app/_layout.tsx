@@ -2,7 +2,7 @@ import "@/global.css";
 
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import { Slot } from "expo-router";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -11,6 +11,7 @@ import { useColorScheme } from "nativewind";
 import { useFonts, Rajdhani_600SemiBold, Rajdhani_700Bold } from "@expo-google-fonts/rajdhani";
 import { IBMPlexSans_400Regular, IBMPlexSans_500Medium, IBMPlexSans_600SemiBold } from "@expo-google-fonts/ibm-plex-sans";
 import { GameProvider } from "@/game/useGame";
+import { SyncProvider } from "@/sync/useSync";
 import { useAppTheme, CHAVE_TEMA } from "@/theme/useAppTheme";
 import { migrate } from "@/db/schema";
 import { getSyncState } from "@/db/repo";
@@ -40,7 +41,9 @@ export default function RootLayout() {
       <SQLiteProvider databaseName={DB_NAME} onInit={migrate}>
         <TemaSalvo>
           <GameProvider>
-            <Fundo />
+            <SyncProvider>
+              <Fundo />
+            </SyncProvider>
           </GameProvider>
         </TemaSalvo>
       </SQLiteProvider>
@@ -84,7 +87,19 @@ function Fundo() {
       <View className="absolute left-0 right-0 top-0 z-10 h-[3px] bg-accent" />
 
       <StatusBar style={isDark ? "light" : "dark"} />
-      <Slot />
+
+      {/* Stack (e não Slot) porque pareamento e conflitos abrem por cima das abas */}
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: "transparent" },
+          animation: "slide_from_right",
+        }}
+      >
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="parear" options={{ animation: "slide_from_bottom" }} />
+        <Stack.Screen name="conflitos" />
+      </Stack>
     </View>
   );
 }

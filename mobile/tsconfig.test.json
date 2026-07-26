@@ -8,7 +8,9 @@
     "types": ["node"],
     "paths": {
       "@/*": ["./src/*"],
-      "expo-crypto": ["./test/stubs/expo-crypto.ts"]
+      "expo-crypto": ["./test/stubs/expo-crypto.ts"],
+      "expo-secure-store": ["./test/stubs/expo-secure-store.ts"],
+      "expo-device": ["./test/stubs/expo-device.ts"]
     }
   },
   "include": ["src/**/*.ts", "test/**/*.ts", "test/**/*.mts"]

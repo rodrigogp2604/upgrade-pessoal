@@ -140,6 +140,17 @@ CREATE TABLE IF NOT EXISTS conflicts (
   createdAt   TEXT NOT NULL
 );
 
+-- Ponte entre o id provisório (negativo) que o app inventou offline e o id real que o
+-- servidor devolveu. Sem isso, "criei o chefão e paguei ele antes de sincronizar" chegaria
+-- ao PC apontando para um id que não existe lá.
+CREATE TABLE IF NOT EXISTS id_map (
+  entity    TEXT    NOT NULL,
+  localId   INTEGER NOT NULL,
+  serverId  INTEGER NOT NULL,
+  createdAt TEXT    NOT NULL,
+  PRIMARY KEY (entity, localId)
+);
+
 CREATE TABLE IF NOT EXISTS pending_files (
   opId       TEXT PRIMARY KEY NOT NULL,
   missionId  INTEGER NOT NULL,

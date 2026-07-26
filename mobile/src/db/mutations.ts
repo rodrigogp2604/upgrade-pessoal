@@ -127,6 +127,9 @@ export async function createDebtLocal(
       total: entrada.total,
       kind: entrada.kind ?? "debt",
       note: entrada.note ?? null,
+      // campo interno (sai antes de ir para a rede): liga o id provisório ao id real que
+      // o servidor devolver, para um pagamento feito offline nesse chefão achar o dono.
+      _localId: idLocal,
     });
   });
 
@@ -185,6 +188,39 @@ export async function markVisitLocal(db: SQLiteDatabase): Promise<void> {
     await db.runAsync("INSERT OR IGNORE INTO visits (date) VALUES (?)", dia);
     await enqueue(db, "visit.mark", { date: dia });
   });
+}
+
+/**
+ * Desfaz, sem enfileirar nada, o efeito local de uma operação que o servidor recusou.
+ *
+ * Só trata o que CRIA linha: um chefão ou pagamento inventado offline e recusado ficaria
+ * no celular para sempre, porque o pull nunca vai trazer algo que o PC não tem. Mudanças
+ * de estado (missão concluída, valor de setting) o pull completo conserta sozinho.
+ */
+export async function reverterCriacaoLocal(db: SQLiteDatabase, type: string, payload: Record<string, unknown>): Promise<void> {
+  if (type === "debt.create" && typeof payload._localId === "number") {
+    await db.runAsync("DELETE FROM debts WHERE id = ?", payload._localId as number);
+    return;
+  }
+
+  if (type === "payment.create" && typeof payload.clientUuid === "string") {
+    const pagamento = await db.getFirstAsync<{ debtId: number }>(
+      "SELECT debtId FROM payments WHERE clientUuid = ?",
+      payload.clientUuid as string
+    );
+    await db.runAsync("DELETE FROM payments WHERE clientUuid = ?", payload.clientUuid as string);
+    // o chefão pode ter sido dado como derrotado por causa desse pagamento
+    if (pagamento) {
+      const d = await db.getFirstAsync<{ total: number }>("SELECT total FROM debts WHERE id = ?", pagamento.debtId);
+      const pago = await db.getFirstAsync<{ soma: number }>(
+        "SELECT COALESCE(SUM(amount), 0) AS soma FROM payments WHERE debtId = ?",
+        pagamento.debtId
+      );
+      if (d && (pago?.soma ?? 0) < d.total) {
+        await db.runAsync("UPDATE debts SET status = 'active' WHERE id = ?", pagamento.debtId);
+      }
+    }
+  }
 }
 
 // ── apoio ──
