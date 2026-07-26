@@ -88,7 +88,7 @@ export default function MissoesScreen() {
             mission={m}
             estado={estadoDe(m.id, m.status)}
             provas={attachmentsOf(m.id)}
-            onComplete={() => completeMission(m.id)}
+            onComplete={() => void completeMission(m.id)}
             onProof={() => {
               /* câmera/galeria entram na Fase 8 */
             }}
@@ -106,7 +106,7 @@ export default function MissoesScreen() {
           </View>
           <View className="gap-[7px]">
             {sideMissions.map((m) => (
-              <MissionSide key={m.id} mission={m} onComplete={() => completeMission(m.id)} />
+              <MissionSide key={m.id} mission={m} onComplete={() => void completeMission(m.id)} />
             ))}
           </View>
         </>

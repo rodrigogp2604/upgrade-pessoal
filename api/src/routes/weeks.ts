@@ -41,6 +41,7 @@ const createSchema = z.object({
         bonus: z.string().optional().nullable(),
         xp: z.number().int().min(0).default(0),
         statGains: z.record(z.string(), z.number()).default({}),
+        kind: z.enum(["main", "side"]).optional(),
       })
     )
     .default([]),

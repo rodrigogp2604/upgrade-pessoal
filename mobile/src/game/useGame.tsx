@@ -1,15 +1,29 @@
-// Estado do jogo + valores derivados. Hoje serve o mock; na Fase 5 a fonte passa a ser
-// o SQLite local e as ações passam a enfileirar operações na outbox — as telas não mudam.
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import { MOCK } from "./mock";
+// Estado do jogo lido do SQLite local. Nenhuma tela sabe se o dado veio do PC ou de uma
+// ação feita no ônibus: tudo passa pelo banco do aparelho.
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useSQLiteContext } from "expo-sqlite";
 import type { GameData, Mission } from "./types";
-import { levelFromXp, powerFromStats, progressWithinLevel, titleFor, nextTitle } from "@/domain";
+import { levelFromXp, nextTitle, powerFromStats, progressWithinLevel, titleFor } from "@/domain";
+import { countConflicts, countPending, loadGameData } from "@/db/repo";
+import {
+  addExtraLocal, completeMissionLocal, createDebtLocal, markVisitLocal,
+  payDebtLocal, putSettingLocal, removeExtraLocal, uncompleteMissionLocal,
+  type KeyDoApp,
+} from "@/db/mutations";
 
 type Feedback = { xp: number | null; toast: string | null; levelUp: number | null };
 
+const VAZIO: GameData = {
+  character: { name: "", xp: 0, stats: {} },
+  titles: [], weeks: [], missions: [], attachments: [], debts: [], extras: [],
+  settings: {}, streak: 0,
+};
+
 type GameContext = {
+  carregando: boolean;
+  /** true = aparelho ainda não recebeu nada do PC */
+  vazio: boolean;
   data: GameData;
-  // derivados
   level: number;
   floor: number;
   title: string | null;
@@ -20,11 +34,16 @@ type GameContext = {
   activeWeek: GameData["weeks"][number] | null;
   mainMissions: Mission[];
   sideMissions: Mission[];
-  // ações
-  completeMission: (id: number) => void;
-  payDebt: (debtId: number, amount: number) => void;
-  addExtra: (name: string, value: number) => void;
-  setSetting: (key: string, value: string) => void;
+  pendentes: number;
+  conflitos: number;
+  recarregar: () => Promise<void>;
+  completeMission: (id: number) => Promise<void>;
+  uncompleteMission: (id: number) => Promise<void>;
+  payDebt: (debtId: number, amount: number) => Promise<void>;
+  createDebt: (e: { name: string; total: number; kind?: "debt" | "item"; note?: string }) => Promise<void>;
+  addExtra: (name: string, value: number) => Promise<void>;
+  removeExtra: (id: string) => Promise<void>;
+  setSetting: (key: KeyDoApp, value: string) => Promise<void>;
   attachmentsOf: (missionId: number) => number;
   feedback: Feedback;
   clearFeedback: () => void;
@@ -33,88 +52,141 @@ type GameContext = {
 const Ctx = createContext<GameContext | null>(null);
 
 export function GameProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<GameData>(MOCK);
+  const db = useSQLiteContext();
+  const [data, setData] = useState<GameData | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [pendentes, setPendentes] = useState(0);
+  const [conflitos, setConflitos] = useState(0);
   const [feedback, setFeedback] = useState<Feedback>({ xp: null, toast: null, levelUp: null });
 
-  const level = levelFromXp(data.character.xp);
-  const { into, pct } = progressWithinLevel(data.character.xp);
-  const activeWeek = data.weeks.find((w) => w.status === "active") ?? null;
+  const recarregar = useCallback(async () => {
+    const [dados, p, c] = await Promise.all([loadGameData(db), countPending(db), countConflicts(db)]);
+    setData(dados);
+    setPendentes(p);
+    setConflitos(c);
+    setCarregando(false);
+  }, [db]);
 
-  const missionsDoArco = useMemo(
-    () => data.missions.filter((m) => m.weekId === activeWeek?.id).sort((a, b) => a.order - b.order),
-    [data.missions, activeWeek?.id]
+  useEffect(() => {
+    // check-in do dia + primeira carga
+    void (async () => {
+      await recarregar();
+      await markVisitLocal(db).catch(() => {}); // sem personagem ainda? a visita pode esperar
+      await recarregar();
+    })();
+  }, [db, recarregar]);
+
+  const dados = data ?? VAZIO;
+  const level = levelFromXp(dados.character.xp);
+  const { into, pct } = progressWithinLevel(dados.character.xp);
+  const activeWeek = dados.weeks.find((w) => w.status === "active") ?? null;
+
+  const missoesDoArco = useMemo(
+    () => dados.missions.filter((m) => m.weekId === activeWeek?.id).sort((a, b) => a.order - b.order),
+    [dados.missions, activeWeek?.id]
   );
 
-  const completeMission = useCallback((id: number) => {
-    setData((atual) => {
-      const m = atual.missions.find((x) => x.id === id);
-      if (!m || m.status === "done") return atual;
-
-      // mesmas fórmulas da API (src/domain.ts): o app celebra na hora, offline
-      const stats = { ...atual.character.stats };
-      for (const [k, v] of Object.entries(m.statGains)) stats[k] = Math.min(100, (stats[k] ?? 0) + v);
-      const xp = atual.character.xp + m.xp;
-
-      const subiu = levelFromXp(xp) > levelFromXp(atual.character.xp);
+  const completeMission = useCallback(
+    async (id: number) => {
+      const r = await completeMissionLocal(db, id);
+      await recarregar();
+      if (!r) return;
+      const m = dados.missions.find((x) => x.id === id);
       setFeedback({
-        xp: m.xp,
-        toast: subiu ? null : `+${m.xp} XP · ${m.title}`,
-        levelUp: subiu ? levelFromXp(xp) : null,
+        xp: r.gainedXp,
+        toast: r.leveledUp ? null : `+${r.gainedXp} XP · ${m?.title ?? "missão concluída"}`,
+        levelUp: r.leveledUp ? r.newLevel : null,
       });
+    },
+    [db, recarregar, dados.missions]
+  );
 
-      return {
-        ...atual,
-        character: { ...atual.character, xp, stats },
-        missions: atual.missions.map((x) => (x.id === id ? { ...x, status: "done" as const } : x)),
-      };
-    });
-  }, []);
+  const uncompleteMission = useCallback(
+    async (id: number) => {
+      const ok = await uncompleteMissionLocal(db, id);
+      await recarregar();
+      if (ok) setFeedback({ xp: null, toast: "Conclusão desfeita.", levelUp: null });
+    },
+    [db, recarregar]
+  );
 
-  const payDebt = useCallback((debtId: number, amount: number) => {
-    setData((atual) => ({
-      ...atual,
-      debts: atual.debts.map((d) => {
-        if (d.id !== debtId) return d;
-        const paid = Math.min(d.total, d.paid + amount);
-        return { ...d, paid, status: paid >= d.total ? ("dead" as const) : d.status };
-      }),
-    }));
-    setFeedback({ xp: null, toast: `Ataque registrado: ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`, levelUp: null });
-  }, []);
+  const payDebt = useCallback(
+    async (debtId: number, amount: number) => {
+      const ok = await payDebtLocal(db, debtId, amount);
+      await recarregar();
+      if (ok) {
+        setFeedback({
+          xp: null,
+          toast: `Ataque registrado: ${amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
+          levelUp: null,
+        });
+      }
+    },
+    [db, recarregar]
+  );
 
-  const addExtra = useCallback((name: string, value: number) => {
-    setData((atual) => ({
-      ...atual,
-      extras: [...atual.extras, { id: `${Date.now()}`, name, value }],
-    }));
-    setFeedback({ xp: null, toast: `Freela registrado: ${name}`, levelUp: null });
-  }, []);
+  const createDebt = useCallback(
+    async (e: { name: string; total: number; kind?: "debt" | "item"; note?: string }) => {
+      const ok = await createDebtLocal(db, e);
+      await recarregar();
+      if (ok) setFeedback({ xp: null, toast: `Chefão novo: ${e.name}`, levelUp: null });
+    },
+    [db, recarregar]
+  );
 
-  const setSetting = useCallback((key: string, value: string) => {
-    setData((atual) => ({ ...atual, settings: { ...atual.settings, [key]: value } }));
-  }, []);
+  const addExtra = useCallback(
+    async (name: string, value: number) => {
+      const ok = await addExtraLocal(db, name, value);
+      await recarregar();
+      if (ok) setFeedback({ xp: null, toast: `Freela registrado: ${name}`, levelUp: null });
+    },
+    [db, recarregar]
+  );
+
+  const removeExtra = useCallback(
+    async (id: string) => {
+      await removeExtraLocal(db, id);
+      await recarregar();
+    },
+    [db, recarregar]
+  );
+
+  const setSetting = useCallback(
+    async (key: KeyDoApp, value: string) => {
+      await putSettingLocal(db, key, value);
+      await recarregar();
+    },
+    [db, recarregar]
+  );
 
   const attachmentsOf = useCallback(
-    (missionId: number) => data.attachments.filter((a) => a.missionId === missionId).length,
-    [data.attachments]
+    (missionId: number) => dados.attachments.filter((a) => a.missionId === missionId).length,
+    [dados.attachments]
   );
 
   const valor: GameContext = {
-    data,
+    carregando,
+    vazio: data === null,
+    data: dados,
     level,
     floor: activeWeek?.floor ?? level,
-    title: titleFor(level, data.titles),
-    nextTitleLevel: nextTitle(level, data.titles)?.level ?? null,
-    power: powerFromStats(data.character.stats),
+    title: titleFor(level, dados.titles),
+    nextTitleLevel: nextTitle(level, dados.titles)?.level ?? null,
+    power: powerFromStats(dados.character.stats),
     xpInto: into,
     xpPct: pct,
     activeWeek,
-    // "principais lineares" x "secundárias com XP bônus", como no protótipo
-    mainMissions: missionsDoArco.filter((m) => m.kind !== "side"),
-    sideMissions: missionsDoArco.filter((m) => m.kind === "side"),
+    mainMissions: missoesDoArco.filter((m) => m.kind !== "side"),
+    sideMissions: missoesDoArco.filter((m) => m.kind === "side"),
+    pendentes,
+    conflitos,
+    recarregar,
     completeMission,
+    uncompleteMission,
     payDebt,
+    createDebt,
     addExtra,
+    removeExtra,
     setSetting,
     attachmentsOf,
     feedback,

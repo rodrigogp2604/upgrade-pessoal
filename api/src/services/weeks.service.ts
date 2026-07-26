@@ -85,6 +85,7 @@ export type WeekInput = {
     bonus?: string | null;
     xp: number;
     statGains: Record<string, number>;
+    kind?: "main" | "side";
   }[];
 };
 
@@ -106,6 +107,7 @@ export async function createWeek(input: WeekInput) {
       missions: {
         create: input.missions.map((m, i) => ({
           order: i + 1,
+          kind: m.kind ?? "main",
           title: m.title,
           description: m.description ?? null,
           bonus: m.bonus ?? null,

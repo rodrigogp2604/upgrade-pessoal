@@ -18,7 +18,7 @@ export default function ChefoesScreen() {
   const atacar = () => {
     const n = Number(valor.replace(",", "."));
     if (!chefao || !n || n <= 0) return;
-    payDebt(chefao.id, n);
+    void payDebt(chefao.id, n);
     setValor("");
   };
 

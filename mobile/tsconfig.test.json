@@ -1,0 +1,15 @@
+{
+  // Roda o código de src/db/* fora do aparelho (Node + node:sqlite).
+  // `expo-crypto` é o único módulo nativo no caminho: aqui ele aponta para um substituto.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "expo-crypto": ["./test/stubs/expo-crypto.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "test/**/*.mts"]
+}

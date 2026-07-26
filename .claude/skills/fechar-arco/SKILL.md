@@ -66,6 +66,9 @@ Com o briefing como guia e a conversa fresca:
 - Monte 5-7 missões concretas e verificáveis (mesmo formato do /briefing:
   `title`, `description` = mínimo do dia, `bonus`, `xp` 25-80, `statGains`).
   Cursos/estudos valem como missão quando a lacuna é real.
+- Opcional: `"kind": "side"` marca a missão como **quest de XP bônus** — ela sai da
+  fila linear e vira extra ("se tiver pique"). Sem `kind`, a missão é `main`: linear,
+  destrava a seguinte. Use 1-2 `side` no máximo, para o essencial não competir com o extra.
 - Crie: `POST /api/weeks` com
   `{ "theme", "startDate": "<domingo, yyyy-mm-dd>", "missions": [...] }`
   (sem `floor`: o app usa o andar atual do personagem).

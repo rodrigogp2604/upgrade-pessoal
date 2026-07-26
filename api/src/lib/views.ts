@@ -52,6 +52,7 @@ export function attachmentView(a: AttachmentRow) {
 type MissionRow = {
   id: number;
   order: number;
+  kind?: string;
   title: string;
   description: string | null;
   bonus: string | null;
@@ -67,6 +68,7 @@ export function missionView(m: MissionRow) {
   return {
     id: m.id,
     order: m.order,
+    kind: m.kind === "side" ? "side" : "main",
     title: m.title,
     description: m.description,
     bonus: m.bonus,

@@ -13,6 +13,7 @@ export const missionsRouter = Router();
 
 const upsertSchema = z.object({
   weekId: z.number().int().optional(),
+  kind: z.enum(["main", "side"]).optional(),
   title: z.string().min(1),
   description: z.string().optional().nullable(),
   bonus: z.string().optional().nullable(),

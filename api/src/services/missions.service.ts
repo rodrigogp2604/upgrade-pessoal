@@ -14,6 +14,8 @@ export type MissionInput = {
   bonus?: string | null;
   xp: number;
   statGains: Record<string, number>;
+  /** main = linear (destrava a seguinte) · side = quest opcional de XP bônus */
+  kind?: "main" | "side";
 };
 
 const withAttachments = { attachments: true } as const;
@@ -47,6 +49,7 @@ export async function createMission(input: MissionInput) {
     data: {
       weekId: targetWeek,
       order: count + 1,
+      kind: input.kind ?? "main",
       title: input.title,
       description: input.description ?? null,
       bonus: input.bonus ?? null,
@@ -63,6 +66,7 @@ export async function updateMission(id: number, patch: Partial<MissionInput>) {
   const mission = await prisma.mission.update({
     where: { id },
     data: {
+      ...(patch.kind !== undefined ? { kind: patch.kind } : {}),
       ...(patch.title !== undefined ? { title: patch.title } : {}),
       ...(patch.description !== undefined ? { description: patch.description } : {}),
       ...(patch.bonus !== undefined ? { bonus: patch.bonus } : {}),

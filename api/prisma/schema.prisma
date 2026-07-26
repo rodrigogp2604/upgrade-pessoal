@@ -65,6 +65,9 @@ model Mission {
   weekId      Int
   week        Week         @relation(fields: [weekId], references: [id], onDelete: Cascade)
   order       Int          @default(0)
+  // main = missão linear do arco (a próxima destrava quando a anterior fecha)
+  // side = quest opcional de XP bônus. Quem decide é o cowork ao montar o arco.
+  kind        String       @default("main")
   title       String
   description String? // "mínimo do dia"
   bonus       String? // "bônus se tiver pique"

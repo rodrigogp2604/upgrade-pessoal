@@ -26,14 +26,14 @@ export default function RendaScreen() {
   const salvarSalario = () => {
     const n = Number(salario.replace(",", "."));
     if (!n || n <= 0) return;
-    setSetting("income_current", String(n));
+    void setSetting("income_current", String(n));
     setSalario("");
   };
 
   const adicionarFreela = () => {
     const n = Number(freelaValor.replace(",", "."));
     if (!freela.trim() || !n || n <= 0) return;
-    addExtra(freela.trim(), n);
+    void addExtra(freela.trim(), n);
     setFreela("");
     setFreelaValor("");
   };
