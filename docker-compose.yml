@@ -7,6 +7,9 @@ services:
       - "4000:4000"
     environment:
       - NODE_ENV=production
+      # IP da máquina na rede local, descoberto por scripts/start.ps1. Sem isso o
+      # servidor só conhece o IP interno do Docker e o QR de pareamento sai inútil.
+      - HOST_LAN_IP=${HOST_LAN_IP:-}
       - DATABASE_URL=file:/app/data/upgrade.db
       - UPLOAD_DIR=/app/data/uploads
       - PORT=4000

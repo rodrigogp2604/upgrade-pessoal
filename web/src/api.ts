@@ -34,6 +34,15 @@ export interface CompleteResult {
   gainedXp: number; gains: Record<string, number>;
 }
 
+export interface SyncDevice {
+  id: string; name: string; lastSeen: string; lastPulledAt: string | null;
+}
+export interface SyncInfo {
+  lanIps: string[]; port: number; tokenSet: boolean;
+  hostLanIpFromEnv: string | null; devices: SyncDevice[];
+}
+export interface Pairing { token: string; hosts: string[]; port: number; protocol: number; }
+
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
 async function req<T>(url: string, opts?: RequestInit): Promise<T> {
@@ -79,6 +88,9 @@ export const api = {
     req<any>(`/api/weeks/${id}/close`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(data) }),
   createWeek: (data: { theme: string; startDate: string; floor?: number; missions: any[] }) =>
     req<Week>("/api/weeks", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(data) }),
+
+  getSyncInfo: () => req<SyncInfo>("/api/sync/info"),
+  newPairing: () => req<Pairing>("/api/sync/pair/new", { method: "POST" }),
 };
 
 export function brl(n: number): string {

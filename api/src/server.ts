@@ -17,7 +17,9 @@ import { repairLegacyDateTimes } from "./lib/repair-datetimes";
 export function createApp() {
   const app = express();
   app.use(cors());
-  app.use(express.json());
+  // 2mb (o padrão é 100kb): o avatar é um data URL dentro do JSON. O painel já reduz a
+  // foto para 256px, mas não quero que "escolhi a foto errada" vire erro 413.
+  app.use(express.json({ limit: "2mb" }));
 
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
   app.use("/api/character", characterRouter);

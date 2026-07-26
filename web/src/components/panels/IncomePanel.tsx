@@ -1,6 +1,7 @@
 import { useRef } from "react";
 
-export interface Extra { name: string; value: number; }
+// `id` é opcional só por causa das entradas antigas; toda nova nasce com um.
+export interface Extra { id?: string; name: string; value: number; at?: string; }
 
 interface Props {
   settings: Record<string, string>;
@@ -117,7 +118,7 @@ export function IncomePanel({ settings, extras, busy, onSaveSalary, onSavePouch,
             QUESTS SECUNDÁRIAS DE RENDA · FREELAS
           </div>
           {extras.map((e, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--soft)", borderRadius: 3, padding: "7px 11px", marginBottom: 6, fontSize: 12.5, animation: "cascL .3s ease-out" }}>
+            <div key={e.id ?? i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--soft)", borderRadius: 3, padding: "7px 11px", marginBottom: 6, fontSize: 12.5, animation: "cascL .3s ease-out" }}>
               <span>{e.name}</span>
               <b style={{ color: "var(--amber-dk)", fontFamily: "var(--disp)", fontSize: 14 }}>+{money(e.value)}</b>
             </div>
