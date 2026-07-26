@@ -10,7 +10,9 @@ import { attachmentsRouter } from "./routes/attachments";
 import { settingsRouter } from "./routes/settings";
 import { briefingRouter } from "./routes/briefing";
 import { titlesRouter } from "./routes/titles";
+import { syncRouter } from "./routes/sync";
 import { errorHandler } from "./lib/http";
+import { repairLegacyDateTimes } from "./lib/repair-datetimes";
 
 export function createApp() {
   const app = express();
@@ -25,6 +27,7 @@ export function createApp() {
   app.use("/api/settings", settingsRouter);
   app.use("/api/briefing", briefingRouter);
   app.use("/api/titles", titlesRouter);
+  app.use("/api/sync", syncRouter);
   app.use("/api", attachmentsRouter); // /api/missions/:id/attachments e /api/attachments/:id/*
 
   // Em produção, serve o frontend buildado (api/public)
@@ -44,7 +47,11 @@ const PORT = Number(process.env.PORT) || 4000;
 
 // Quando executado direto (dev via tsx), sobe o servidor.
 if (require.main === module) {
-  createApp().listen(PORT, () => {
-    console.log(`🎮 Upgrade Pessoal API em http://localhost:${PORT}`);
-  });
+  repairLegacyDateTimes()
+    .catch((e) => console.error("aviso: não consegui normalizar as datas —", e))
+    .finally(() => {
+      createApp().listen(PORT, () => {
+        console.log(`🎮 Upgrade Pessoal API em http://localhost:${PORT}`);
+      });
+    });
 }

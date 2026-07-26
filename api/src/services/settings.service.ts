@@ -8,7 +8,11 @@ import { AppError } from "../lib/errors";
 export const HIDDEN_SETTING_KEYS = new Set(["sync_token"]);
 
 // Keys que o celular pode escrever pelo sync (o resto é do painel/cowork).
-export const MOBILE_WRITABLE_KEYS = new Set(["salary", "extras", "pouch", "pouch_goal", "avatar"]);
+// `income_current` é o salário de hoje; as outras metas de renda (start/checkpoint/target)
+// saem do briefing e o app não mexe.
+// `extras` NÃO entra aqui de propósito: freela vai por `extra.add`/`extra.remove`, que
+// funde por id em vez de sobrescrever a lista inteira.
+export const MOBILE_WRITABLE_KEYS = new Set(["income_current", "pouch", "pouch_goal", "avatar"]);
 
 export async function getPublicSettings(): Promise<Record<string, string>> {
   const rows = await prisma.setting.findMany();

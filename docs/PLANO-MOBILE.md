@@ -66,6 +66,9 @@ Quando o arco ativo passar de 7 dias, o app mostra um aviso fixo:
 | D3 | Conflitos | **Tela de resolução registro a registro** (Celular vs PC, com "usar tudo do celular/PC") | nada é sobrescrito sem o usuário ver |
 | D4 | Escopo de escrita mobile | Missões (concluir), provas, pagamentos, **criar chefões**, freelas/salário, bolsa, avatar/tema | resposta do usuário em 26/07/2026 |
 | D5 | Estratégia de sync | **Outbox de operações (push) + pull incremental por cursor** | ações do app são eventos; evita merge cego de linhas e duplicação de XP |
+| D19 | Datas legadas do SQLite | **`repairLegacyDateTimes()` roda no start** (`api/src/lib/repair-datetimes.ts`), convertendo `updatedAt` em TEXT para INTEGER | descoberto na Fase 2: o `db push` preenche coluna de data nova com TEXT, e o SQLite ordena INTEGER antes de TEXT — `updatedAt >= cursor` casava com **toda** linha antiga e o pull incremental voltava o banco inteiro. 36 linhas corrigidas no banco real |
+| D20 | Chave do salário | o app escreve **`income_current`** (não `salary`) | é a key que o painel já usa; `income_start/checkpoint/target` vêm do briefing e o app não toca |
+| D21 | Limite de requisições | **120/min por aparelho** (o plano dizia 30) | a primeira sincronização faz um upload por prova; 30 travaria um celular com 40 fotos |
 | D18 | Cursor do pull | **`updatedAt` em cada modelo + tabela `Tombstone` para deleções** (revisado em 26/07/2026; antes era uma tabela `ChangeLog` alimentada por extension do Prisma) | a extension só enxerga a operação de topo: `week.create` com missões aninhadas (`weeks.ts`) e cascatas do SQLite passariam despercebidas. `updatedAt` é preenchido pelo próprio Prisma em qualquer caminho de escrita |
 | D6 | Fonte da verdade | **PC sempre**, exceto pelas ops que o usuário resolver a favor do celular | o motor de regras é o `api/src/domain.ts` |
 | D7 | Local do código | pasta `mobile/` no **mesmo repositório**, com `package.json` próprio, **fora** do `workspaces` do npm | o protocolo de sync é um contrato entre `api/` e `mobile/` — repos separados fazem as duas pontas derivarem; fora do workspace porque o Metro do Expo quebra com hoisting |
@@ -277,13 +280,13 @@ Status possíveis: `applied` | `conflict` | `rejected` (com `reason` legível: `
 
 | Op | Conflita quando | Resolução |
 |---|---|---|
-| `mission.complete` / `uncomplete` | status no servidor ≠ `base.status` **e** ≠ ao desejado (ex.: app concluiu, PC desfez) | **escolha do usuário** |
+| `mission.complete` / `uncomplete` | a linha no PC foi tocada depois do `base.updatedAt` do celular **e** o status atual ≠ o desejado | **escolha do usuário**. Detectar por `updatedAt` (e não por comparar status) é o que pega o caso real "app concluiu offline, PC desfez de propósito" — nesse caso o status volta a ser igual ao que o celular tinha visto e uma comparação de status não veria nada. O preço é um falso positivo possível: se o cowork só corrigiu o texto da missão na mesma janela, aparece um card de conflito. Um toque a mais vale menos que um "desfiz" apagado sem aviso |
 | `mission.*` em arco `closed` | sempre | `rejected: week_closed` — o app avisa e descarta (não é escolha) |
 | `attachment.create` | nunca (append-only, dedupe por `clientUuid`) | automático |
 | `payment.create` | nunca por si só; **mas** se existir pagamento no mesmo chefão, mesmo valor, dentro de 24 h → `possible_duplicate` | escolha: **manter os dois** ou **manter só um** |
 | `debt.create` | já existe chefão ativo com nome igual (case-insensitive) → `possible_duplicate` | escolha: criar assim mesmo ou usar o existente |
 | `extra.add` / `extra.remove` | nunca — cada freela tem `id` (uuid), a lista é união por id | automático |
-| `setting.put` (`salary`, `pouch`, `pouch_goal`, `avatar`) | valor no servidor mudou depois do `base.updatedAt` | **escolha do usuário** (mostra os dois valores) |
+| `setting.put` (`income_current`, `pouch`, `pouch_goal`, `avatar`) | valor no servidor mudou depois do `base.updatedAt` | **escolha do usuário** (mostra os dois valores) |
 | `visit.mark` | nunca (união de datas) | automático |
 | tema | não sincroniza (D12) | — |
 
@@ -312,10 +315,11 @@ Status possíveis: `applied` | `conflict` | `rejected` (com `reason` legível: `
 
 ### Gotchas reais (já mapeados)
 
-- **Docker esconde o IP do host.** Dentro do container, `os.networkInterfaces()` devolve
-  `172.x`. Solução: `scripts/start.ps1` detecta o IPv4 da LAN no Windows e injeta
-  `HOST_LAN_IP` no `docker compose up`; `/api/sync/info` devolve esse valor **e** deixa o
-  campo editável no painel.
+- **Docker esconde o IP do host** — ✅ confirmado na prática em 26/07/2026: com o container
+  no ar, `GET /api/sync/info` devolveu `lanIps: ["172.18.0.2"]`, inútil para o celular.
+  Solução: `scripts/start.ps1` detecta o IPv4 da LAN no Windows e injeta `HOST_LAN_IP` no
+  `docker compose up`; `lanIps()` já põe esse valor na frente da lista, e o painel deixa o
+  campo editável.
 - **Android bloqueia HTTP puro** desde o Android 9. Solução: `expo-build-properties` com
   `android.usesCleartextTraffic: true` (LAN privada, sem TLS — decisão consciente:
   o token protege o acesso, e o tráfego não sai da rede local).
@@ -428,8 +432,8 @@ que ninguém ganha XP duas vezes.
 
 | Fase | Entrega | Arquivos principais |
 |---|---|---|
-| **1. Backend — fundação** | migration (`updatedAt`, `Tombstone`, `SyncOp`, `Device`, `clientUuid`), `AppError`, refatoração para `services/`, filtro do `sync_token` no `/api/settings` | `api/prisma/`, `api/src/lib/{errors,tombstones}.ts`, `api/src/services/*` |
-| **2. Backend — protocolo** | `/api/sync/*` completo (info, pair, ping, hello, pull, push, attachments), whitelist de ops, detecção de conflito, idempotência, rate limit | `api/src/routes/sync.ts`, `api/src/lib/sync/*` |
+| ~~**1. Backend — fundação**~~ ✅ | migration (`updatedAt`, `Tombstone`, `SyncOp`, `Device`, `clientUuid`), `AppError`, refatoração para `services/`, filtro do `sync_token` no `/api/settings` | `api/prisma/`, `api/src/lib/{errors,tombstones}.ts`, `api/src/services/*` |
+| ~~**2. Backend — protocolo**~~ ✅ | `/api/sync/*` completo (info, pair, ping, hello, pull, push, attachments), whitelist de ops, detecção de conflito, idempotência via `SyncOp`, rate limit, reparo de datas (D19). **48 checagens automatizadas passando**, incluindo XP não duplicando em replay, conflito de missão/pagamento/setting, arco fechado e pull incremental | `api/src/routes/sync.ts`, `api/src/lib/sync/*`, `api/src/services/sync.service.ts` |
 | **3. Painel + infra** | tela "Parear celular" com QR, `scripts/start.ps1` com `HOST_LAN_IP`, migração do avatar (localStorage → Setting) e dos `extras` (ids uuid) | `web/src/components/panels/PairPanel.tsx`, `scripts/` |
 | **4. App — esqueleto** | projeto Expo, NativeWind + tokens, fontes, 5 abas, tema claro/escuro, componentes visuais do protótipo com dados mockados | `mobile/` |
 | **5. App — banco local** | schema SQLite, repositórios, `domain.ts` espelhado, telas lendo do banco | `mobile/src/db/*` |
