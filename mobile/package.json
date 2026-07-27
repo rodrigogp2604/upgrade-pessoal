@@ -58,7 +58,9 @@
     "typecheck": "tsc --noEmit",
     "test:db": "tsx --tsconfig tsconfig.test.json test/db.test.mts",
     "test:sync": "tsx --tsconfig tsconfig.test.json test/sync.test.mts",
-    "bundle:check": "expo export --platform android --output-dir dist-check --clear"
+    "bundle:check": "expo export --platform android --output-dir dist-check --clear",
+    "build:apk": "powershell -ExecutionPolicy Bypass -File ../scripts/build-apk.ps1",
+    "icons": "node scripts/gerar-icones.mjs"
   },
   "private": true
 }
