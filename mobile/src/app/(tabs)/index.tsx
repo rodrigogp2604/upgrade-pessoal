@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { ProofSheet } from "@/components/ProofSheet";
 import { useGame } from "@/game/useGame";
 import { useAppTheme } from "@/theme/useAppTheme";
 import { AvatarInitials, ProgressBar, SectionLabel, XpRing } from "@/components/ui";
@@ -22,6 +24,8 @@ export default function MissoesScreen() {
     data, level, floor, title, power, xpInto, xpPct,
     activeWeek, mainMissions, sideMissions, completeMission, attachmentsOf,
   } = useGame();
+
+  const [provaDe, setProvaDe] = useState<{ id: number; title: string } | null>(null);
 
   const feitas = mainMissions.filter((m) => m.status === "done").length;
   const primeiraPendente = mainMissions.find((m) => m.status === "pending");
@@ -89,9 +93,7 @@ export default function MissoesScreen() {
             estado={estadoDe(m.id, m.status)}
             provas={attachmentsOf(m.id)}
             onComplete={() => void completeMission(m.id)}
-            onProof={() => {
-              /* câmera/galeria entram na Fase 8 */
-            }}
+            onProof={() => setProvaDe({ id: m.id, title: m.title })}
           />
         ))}
       </View>
@@ -111,6 +113,12 @@ export default function MissoesScreen() {
           </View>
         </>
       )}
+
+      <ProofSheet
+        missionId={provaDe?.id ?? null}
+        titulo={provaDe?.title ?? ""}
+        fechar={() => setProvaDe(null)}
+      />
 
       {mainMissions.length === 0 && (
         <View className="mt-4 rounded-md border border-line bg-surf px-4 py-5">

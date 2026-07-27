@@ -147,6 +147,54 @@ const depoisDoPull = (await loadGameData(db))!.missions.find((m) => m.id === mai
 ok("o pull desfez o que o app tinha assumido", depoisDoPull.status === "pending", depoisDoPull.status);
 await prisma.week.update({ where: { id: arco.id }, data: { status: "active" } });
 
+secao("provas: anexar offline e subir depois");
+const { File } = await import("expo-file-system");
+const { anexarProvaLocal, listarProvas, contarProvasPendentes, removerProvaLocal } = await import("@/db/proofs");
+
+const arquivo = new File(`${(await import("node:os")).tmpdir()}/prova-teste.txt`);
+arquivo.write("conteúdo da prova de teste");
+
+const missaoDaProva = (await loadGameData(db))!.missions.find((m) => m.weekId === arco.id)!;
+const clientUuidProva = "prova-teste-" + Date.now();
+await anexarProvaLocal(db, missaoDaProva.id, {
+  clientUuid: clientUuidProva,
+  uri: arquivo.uri,
+  thumbUri: null,
+  originalName: "prova-teste.txt",
+  mimeType: "text/plain",
+  size: arquivo.size,
+});
+
+let provasLocais = await listarProvas(db, missaoDaProva.id);
+ok("prova aparece na hora com id negativo", provasLocais.some((p) => p.id < 0), JSON.stringify(provasLocais.map((p) => p.id)));
+ok("arquivo entrou na fila de upload", (await contarProvasPendentes(db)) === 1);
+
+r = await sincronizar(db);
+ok("upload contou como envio", r.enviadas >= 1, JSON.stringify(r));
+ok("fila de arquivos esvaziou", (await contarProvasPendentes(db)) === 0);
+
+const provaNoServidor = await prisma.attachment.findUnique({ where: { clientUuid: clientUuidProva } });
+ok("prova chegou no PC", Boolean(provaNoServidor), String(provaNoServidor?.originalName));
+ok("ligada à missão certa", provaNoServidor?.missionId === missaoDaProva.id);
+
+provasLocais = await listarProvas(db, missaoDaProva.id);
+ok("a linha local virou a do servidor (id positivo)", provasLocais.some((p) => p.id === provaNoServidor.id));
+ok("nenhuma linha negativa sobrou", !provasLocais.some((p) => p.id < 0), JSON.stringify(provasLocais.map((p) => p.id)));
+ok("arquivo cheio saiu do aparelho", !arquivo.exists);
+
+// o conteúdo em si chegou? (linha no banco não é o mesmo que bytes no disco)
+const baixado = await (await fetch(`${BASE}/api/attachments/${provaNoServidor.id}/download`)).text();
+ok("os bytes da prova chegaram inteiros", baixado === "conteúdo da prova de teste", JSON.stringify(baixado.slice(0, 40)));
+
+// reenvio do mesmo upload não pode duplicar (idempotência por opId no servidor)
+const quantasAntes = await prisma.attachment.count({ where: { missionId: missaoDaProva.id } });
+r = await sincronizar(db);
+ok("sincronizar de novo não duplica a prova", (await prisma.attachment.count({ where: { missionId: missaoDaProva.id } })) === quantasAntes);
+
+const { arquivoParaApagar } = await removerProvaLocal(db, provaNoServidor.id);
+r = await sincronizar(db);
+ok("remover prova no celular apaga no PC também", (await prisma.attachment.findUnique({ where: { id: provaNoServidor.id } })) === null, JSON.stringify(arquivoParaApagar));
+
 secao("sem PC ao alcance");
 await trocarHost(db, "10.255.255.1", 4123); // endereço que não responde
 await addExtraLocal(db, "Freela do modo avião", 300);

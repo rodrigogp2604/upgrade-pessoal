@@ -3,6 +3,7 @@
 // Timeout curto é decisão de produto — o app tem que decidir rápido "o PC não está aqui"
 // e voltar a funcionar offline, em vez de deixar a tela pensando.
 import type { Pairing } from "./pairing";
+import { parteDeArquivo } from "@/sync/filepart";
 
 export const TIMEOUT_PING = 2500;
 export const TIMEOUT_DADOS = 20000;
@@ -130,6 +131,47 @@ export const push = (p: Pairing, dev: string, ops: OpParaEnviar[]) =>
     method: "POST",
     body: { deviceId: dev, ops },
   });
+
+/**
+ * Sobe uma prova (multipart). Fica fora do `pedir()` porque aqui o corpo não é JSON e o
+ * Content-Type tem que ser montado pelo runtime, com o boundary.
+ */
+export async function enviarProva(
+  p: Pairing,
+  dev: string,
+  prova: { opId: string; missionId: number; clientUuid: string; uri: string; nome: string; mime: string }
+): Promise<{ status: string; data?: unknown }> {
+  const form = new FormData();
+  form.append("file", parteDeArquivo(prova.uri, prova.nome, prova.mime) as Blob);
+  form.append("opId", prova.opId);
+  form.append("missionId", String(prova.missionId));
+  form.append("clientUuid", prova.clientUuid);
+
+  const controle = new AbortController();
+  // prova é arquivo: merece bem mais paciência que uma chamada de JSON
+  const corta = setTimeout(() => controle.abort(), 60000);
+
+  try {
+    const res = await fetch(`${baseUrl(p)}/api/sync/attachments`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${p.token}`, "X-Device-Id": dev },
+      body: form,
+      signal: controle.signal,
+    });
+
+    if (res.status === 401) throw new SyncError("pareamento expirado", "unauthorized", 401);
+    if (res.status === 413) throw new SyncError("prova maior que o limite do servidor", "server", 413);
+    if (!res.ok) throw new SyncError(`o servidor respondeu ${res.status}`, "server", res.status);
+
+    return (await res.json()) as { status: string; data?: unknown };
+  } catch (e) {
+    if (e instanceof SyncError) throw e;
+    const abortou = (e as Error)?.name === "AbortError";
+    throw new SyncError(abortou ? "o envio da prova demorou demais" : "sem conexão com o PC", abortou ? "timeout" : "offline");
+  } finally {
+    clearTimeout(corta);
+  }
+}
 
 /**
  * Procura o servidor na faixa /24 do endereço conhecido. Serve para quando o DHCP troca o

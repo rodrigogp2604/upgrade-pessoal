@@ -33,6 +33,17 @@
       "expo-sqlite",
       "expo-secure-store",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "As provas das suas missões saem da galeria.",
+          "cameraPermission": "Para fotografar a prova de uma missão."
+        }
+      ],
+      [
+        "expo-camera",
+        { "cameraPermission": "Para ler o QR de pareamento com o PC." }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {

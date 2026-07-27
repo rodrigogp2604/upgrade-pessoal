@@ -70,17 +70,27 @@ export async function aplicarPull(db: SQLiteDatabase, resposta: PullResposta): P
     }
 
     for (const a of c.attachments) {
-      // prova que subiu deste aparelho: a linha local (id negativo) dá lugar à do servidor
+      // Prova que subiu deste aparelho: a linha local (id negativo) dá lugar à do servidor,
+      // mas a MINIATURA é herdada — é ela que faz a prova continuar visível offline depois
+      // de o arquivo cheio ser apagado do celular.
+      let miniatura: string | null = null;
       if (a.clientUuid) {
+        const local = await db.getFirstAsync<{ localUri: string | null }>(
+          "SELECT localUri FROM attachments WHERE clientUuid = ? AND id < 0",
+          a.clientUuid
+        );
+        miniatura = local?.localUri ?? null;
         await db.runAsync("DELETE FROM attachments WHERE clientUuid = ? AND id < 0", a.clientUuid);
       }
+
       await db.runAsync(
-        `INSERT INTO attachments (id, missionId, originalName, mimeType, size, url, clientUuid, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO attachments (id, missionId, originalName, mimeType, size, url, localUri, clientUuid, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET missionId = excluded.missionId, originalName = excluded.originalName,
            mimeType = excluded.mimeType, size = excluded.size, url = excluded.url,
+           localUri = COALESCE(excluded.localUri, attachments.localUri),
            clientUuid = excluded.clientUuid, updatedAt = excluded.updatedAt`,
-        a.id, a.missionId, a.originalName, a.mimeType, a.size, a.url, a.clientUuid, a.createdAt, a.updatedAt
+        a.id, a.missionId, a.originalName, a.mimeType, a.size, a.url, miniatura, a.clientUuid, a.createdAt, a.updatedAt
       );
     }
 

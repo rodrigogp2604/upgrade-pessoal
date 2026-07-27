@@ -10,7 +10,9 @@
       "@/*": ["./src/*"],
       "expo-crypto": ["./test/stubs/expo-crypto.ts"],
       "expo-secure-store": ["./test/stubs/expo-secure-store.ts"],
-      "expo-device": ["./test/stubs/expo-device.ts"]
+      "expo-device": ["./test/stubs/expo-device.ts"],
+      "expo-file-system": ["./test/stubs/expo-file-system.ts"],
+      "@/sync/filepart": ["./test/stubs/filepart.ts"]
     }
   },
   "include": ["src/**/*.ts", "test/**/*.ts", "test/**/*.mts"]

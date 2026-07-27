@@ -5,8 +5,10 @@
 // na frente do usuário.
 import type { SQLiteDatabase } from "expo-sqlite";
 import { aplicarPull, idServidorDe, remapearId } from "./apply";
-import { hello, ping, pull, push, SyncError, type OpParaEnviar, type ResultadoOp } from "./client";
-import { deviceId, deviceName, lerPareamento } from "./pairing";
+import { enviarProva, hello, ping, pull, push, SyncError, type OpParaEnviar, type ResultadoOp } from "./client";
+import { deviceId, deviceName, lerPareamento, type Pairing } from "./pairing";
+import { marcarProvaEnviada, provasPendentes } from "@/db/proofs";
+import { apagarOriginal } from "@/proofs/files";
 import { discard, markApplied, markConflict, markError, pendingOps, type OutboxRow } from "@/db/outbox";
 import { reverterCriacaoLocal } from "@/db/mutations";
 import { getSyncState, setSyncState } from "@/db/repo";
@@ -101,6 +103,19 @@ export async function sincronizar(db: SQLiteDatabase): Promise<Resultado> {
     return { ...base, estado: erro.code === "unauthorized" ? "erro" : "offline", mensagem: erro.message, enviadas, conflitos, recusadas };
   }
 
+  // 2ª etapa: as provas. Vão depois das operações porque a missão precisa existir no PC
+  // antes de receber anexo, e antes do pull para a linha do servidor já chegar completa.
+  let provasEnviadas = 0;
+  try {
+    provasEnviadas = await enviarProvas(db, pareamento, dev);
+  } catch (e) {
+    const erro = e as SyncError;
+    // prova que não subiu continua na fila; o resto da sincronização não precisa parar
+    if (erro.code === "unauthorized") {
+      return { ...base, estado: "erro", mensagem: erro.message, enviadas, conflitos, recusadas };
+    }
+  }
+
   try {
     // "escolhi o PC" na tela de conflitos também pede a verdade inteira de volta
     const pedidoNaTela = (await getSyncState(db, "fullPullNext")) === "1";
@@ -109,11 +124,57 @@ export async function sincronizar(db: SQLiteDatabase): Promise<Resultado> {
     const resposta = await pull(pareamento, dev, cursor);
     await aplicarPull(db, resposta);
     if (pedidoNaTela) await setSyncState(db, "fullPullNext", "0");
-    return { estado: conflitos > 0 ? "conflitos" : "ok", enviadas, conflitos, recusadas, baixou: true };
+    return {
+      estado: conflitos > 0 ? "conflitos" : "ok",
+      enviadas: enviadas + provasEnviadas,
+      conflitos,
+      recusadas,
+      baixou: true,
+    };
   } catch (e) {
     const erro = e as SyncError;
     return { ...base, estado: "offline", mensagem: erro.message, enviadas, conflitos, recusadas };
   }
+}
+
+/**
+ * Sobe as provas pendentes, uma por vez (arquivo grande em paralelo só atrapalha o Wi-Fi
+ * de casa). Confirmado o recebimento, o arquivo cheio sai do aparelho e fica a miniatura.
+ */
+async function enviarProvas(db: SQLiteDatabase, pareamento: Pairing, dev: string): Promise<number> {
+  const pendentes = await provasPendentes(db, 5);
+  let enviadas = 0;
+
+  for (const prova of pendentes) {
+    const registro = await db.getFirstAsync<{ originalName: string; mimeType: string | null }>(
+      "SELECT originalName, mimeType FROM attachments WHERE clientUuid = ?",
+      prova.clientUuid
+    );
+
+    try {
+      await enviarProva(pareamento, dev, {
+        opId: prova.opId,
+        missionId: prova.missionId,
+        clientUuid: prova.clientUuid,
+        uri: prova.localUri,
+        nome: registro?.originalName ?? "prova",
+        mime: registro?.mimeType ?? "application/octet-stream",
+      });
+      await marcarProvaEnviada(db, prova.opId);
+      apagarOriginal(prova.localUri);
+      enviadas++;
+    } catch (e) {
+      const erro = e as SyncError;
+      // prova recusada pelo tamanho nunca vai passar: tirar da fila evita retry eterno
+      if (erro.status === 413) {
+        await marcarProvaEnviada(db, prova.opId);
+        continue;
+      }
+      throw e;
+    }
+  }
+
+  return enviadas;
 }
 
 /**

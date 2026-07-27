@@ -124,6 +124,29 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
 ok("streak conta dias consecutivos", streakDe([iso(hoje), iso(ontem)]) === 2);
 ok("streak quebra com buraco", streakDe([iso(hoje), "2020-01-01"]) === 1);
 
+secao("provas locais");
+const { anexarProvaLocal, listarProvas, contarProvasPendentes, removerProvaLocal } = await import("@/db/proofs");
+const missaoComProva = (await loadGameData(db))!.missions[0];
+
+await anexarProvaLocal(db, missaoComProva.id, {
+  clientUuid: "uuid-prova-local",
+  uri: "/tmp/prova.jpg",
+  thumbUri: "/tmp/mini.jpg",
+  originalName: "print.jpg",
+  mimeType: "image/jpeg",
+  size: 12345,
+});
+const daMissao = await listarProvas(db, missaoComProva.id);
+ok("prova entra com id negativo", daMissao.some((p) => p.id < 0));
+ok("miniatura é o que a tela usa", daMissao.find((p) => p.id < 0)?.localUri === "/tmp/mini.jpg");
+ok("arquivo cheio fica na fila de upload", (await contarProvasPendentes(db)) === 1);
+
+const opsAntes = (await db.getAllAsync<{ n: number }>("SELECT COUNT(*) AS n FROM outbox"))[0].n;
+const removida = await removerProvaLocal(db, daMissao.find((p) => p.id < 0)!.id);
+ok("remover prova que nunca subiu não gera operação para o PC", (await db.getAllAsync<{ n: number }>("SELECT COUNT(*) AS n FROM outbox"))[0].n === opsAntes);
+ok("e tira o arquivo da fila", (await contarProvasPendentes(db)) === 0);
+ok("devolve o arquivo para apagar do disco", removida.arquivoParaApagar === "/tmp/prova.jpg", String(removida.arquivoParaApagar));
+
 secao("conflito e descarte");
 const algumaOp = (await pendingOps(db, 1))[0];
 await markConflict(db, algumaOp.opId, {
