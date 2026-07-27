@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "Upgrade Pessoal",
+    "slug": "upgrade-pessoal",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "upgradepessoal",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "br.dev.upgradepessoal",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#2b2b2b",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#2b2b2b",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      "expo-sqlite",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "As provas das suas missões saem da galeria.",
+          "cameraPermission": "Para fotografar a prova de uma missão.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Para ler o QR de pareamento com o PC.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2d2a48be-d834-44e7-bbfc-0fc28ee6ce1f"
+      }
+    },
+    "owner": "rodrigog2604"
+  }
+}

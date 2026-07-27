@@ -7,10 +7,10 @@ dist/
 **/dist/
 api/public/
 
-# dados pessoais (o banco e as provas NÃO vão pro git)
-data/*.db
-data/*.db-journal
-data/uploads/
+# A pasta data/ é do usuário: banco, provas e o APK publicado. Nada disso vai pro git —
+# ignorar a pasta inteira evita commitar um binário de 60 MB por distração.
+data/*
+!data/.gitkeep
 
 # ambiente
 .env

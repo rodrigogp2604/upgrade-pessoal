@@ -22,9 +22,10 @@ model Character {
 
 // Escada de títulos personalizada, gerada pelo /briefing (level = nível mínimo).
 model Title {
-  id    Int    @id @default(autoincrement())
-  level Int
-  name  String
+  id        Int      @id @default(autoincrement())
+  level     Int
+  name      String
+  updatedAt DateTime @updatedAt @default(now())
 }
 
 // Briefing completo em markdown, escrito na conversa com o cowork. Versionado:
@@ -33,12 +34,14 @@ model Briefing {
   id        Int      @id @default(autoincrement())
   content   String
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
 }
 
 // Check-in diário (para o streak)
 model Visit {
-  id   Int    @id @default(autoincrement())
-  date String @unique // ISO yyyy-mm-dd
+  id        Int      @id @default(autoincrement())
+  date      String   @unique // ISO yyyy-mm-dd
+  updatedAt DateTime @updatedAt @default(now())
 }
 
 // Arco semanal (definido todo domingo). Acontece em um "andar" (estilo SAO).
@@ -52,6 +55,7 @@ model Week {
   review    String? // texto da revisão de domingo
   closedAt  DateTime?
   createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt @default(now())
   missions  Mission[]
 }
 
@@ -61,6 +65,9 @@ model Mission {
   weekId      Int
   week        Week         @relation(fields: [weekId], references: [id], onDelete: Cascade)
   order       Int          @default(0)
+  // main = missão linear do arco (a próxima destrava quando a anterior fecha)
+  // side = quest opcional de XP bônus. Quem decide é o cowork ao montar o arco.
+  kind        String       @default("main")
   title       String
   description String? // "mínimo do dia"
   bonus       String? // "bônus se tiver pique"
@@ -69,6 +76,7 @@ model Mission {
   status      String       @default("pending") // pending | done
   rating      Int? // estrelas da entrega (fechamento)
   completedAt DateTime?
+  updatedAt   DateTime     @updatedAt @default(now())
   attachments Attachment[]
 }
 
@@ -81,7 +89,9 @@ model Attachment {
   originalName String
   mimeType     String
   size         Int
+  clientUuid   String?  @unique // idempotência: prova enviada pelo celular só entra uma vez
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt @default(now())
 }
 
 // Chefão = valor devido. HP = valor restante. "Ataque" = pagamento.
@@ -96,20 +106,59 @@ model Debt {
   status    String    @default("active") // active | dead
   order     Int       @default(0)
   createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt @default(now())
   payments  Payment[]
 }
 
 model Payment {
-  id     Int      @id @default(autoincrement())
-  debtId Int
-  debt   Debt     @relation(fields: [debtId], references: [id], onDelete: Cascade)
-  amount Float
-  note   String?
-  date   DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  debtId     Int
+  debt       Debt     @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  amount     Float
+  note       String?
+  date       DateTime @default(now())
+  clientUuid String?  @unique // idempotência: ataque lançado pelo celular só entra uma vez
+  updatedAt  DateTime @updatedAt @default(now())
 }
 
 // Configs livres (meta de renda, reserva, etc.)
 model Setting {
-  key   String @id
-  value String
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @default(now())
+}
+
+// ─────────────────────────── sincronização com o app mobile ───────────────────────────
+// O pull usa `updatedAt` de cada modelo como cursor. Deleção não deixa updatedAt,
+// então vira lápide aqui. Cascatas NÃO geram lápide: o banco do app repete as mesmas
+// FKs ON DELETE CASCADE e apaga os filhos sozinho.
+model Tombstone {
+  id       Int      @id @default(autoincrement())
+  entity   String // mission | attachment | debt | payment | title | week
+  entityId String // id como texto (Setting usaria a key)
+  at       DateTime @default(now())
+
+  @@index([at])
+}
+
+// Idempotência do push: cada operação vinda do celular aplica no máximo uma vez.
+// É isso que impede a mesma missão de creditar XP duas vezes quando o envio repete.
+model SyncOp {
+  opId       String   @id // uuid gerado no aparelho
+  deviceId   String
+  type       String
+  status     String // applied | conflict | rejected
+  resultJson String?
+  createdAt  DateTime @default(now())
+
+  @@index([deviceId])
+}
+
+// Aparelho pareado por QR.
+model Device {
+  id           String    @id // uuid do aparelho
+  name         String
+  lastPulledAt DateTime? // cursor entregue no último pull
+  lastSeen     DateTime  @updatedAt
+  createdAt    DateTime  @default(now())
 }

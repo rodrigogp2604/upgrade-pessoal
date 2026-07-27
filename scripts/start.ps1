@@ -4,6 +4,7 @@
 
 $proj = Split-Path -Parent $PSScriptRoot
 Set-Location $proj
+. "$PSScriptRoot\lan-ip.ps1"
 
 # Console em UTF-8 (senão emojis/acentos viram lixo no conhost legado)
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
@@ -58,6 +59,18 @@ else {
 
 # ---------- 2) Sobe o container ----------
 Write-Host ""
+
+# O container só enxerga a rede do Docker (172.x), que não serve para o celular achar
+# o PC. Quem descobre o IP de verdade é aqui, e ele viaja em HOST_LAN_IP para o QR de
+# pareamento sair com o endereço certo.
+$lanIp = Get-LanIPv4
+if ($lanIp) {
+  $env:HOST_LAN_IP = $lanIp
+  Write-Host "🌐 IP desta máquina na rede: $lanIp" -ForegroundColor Cyan
+} else {
+  Write-Host "⚠️  Não achei o IP da rede local — no pareamento do celular você digita na mão." -ForegroundColor Yellow
+}
+
 Write-Host "📦 Subindo o painel (a 1ª vez builda a imagem e demora alguns minutos)..." -ForegroundColor Cyan
 Write-Host ""
 
@@ -97,6 +110,9 @@ if (-not $ok) {
 Write-Host ""
 Write-Host "  ✅ NO AR! " -ForegroundColor Green -NoNewline
 Write-Host "Abrindo http://localhost:4000" -ForegroundColor White
+if ($lanIp) {
+  Write-Host "  📱 No celular (mesma rede Wi-Fi): http://${lanIp}:4000" -ForegroundColor DarkCyan
+}
 Write-Host ""
 Start-Process "http://localhost:4000"
 Start-Sleep -Seconds 3

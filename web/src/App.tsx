@@ -11,11 +11,14 @@ import { BossPanel } from "./components/panels/BossPanel";
 import { IncomePanel, type Extra } from "./components/panels/IncomePanel";
 import { BagPanel } from "./components/panels/BagPanel";
 import { BriefingPanel } from "./components/panels/BriefingPanel";
+import { PairPanel } from "./components/panels/PairPanel";
 import { Celebration, type CelebrationData } from "./components/Celebration";
 
-export type MenuId = "status" | "torre" | "boss" | "renda" | "bolsa" | "briefing" | null;
+export type MenuId = "status" | "torre" | "boss" | "renda" | "bolsa" | "briefing" | "celular" | null;
 
-const AVATAR_KEY = "upgrade-pessoal-avatar";
+// Chave do tempo em que o avatar morava só neste navegador. Hoje ele é uma Setting no
+// banco (para o celular também ver); isto aqui sobrevive apenas para a migração.
+const AVATAR_KEY_LEGADO = "upgrade-pessoal-avatar";
 
 function money(v: number): string {
   return "R$ " + Math.round(v).toLocaleString("pt-BR");
@@ -40,9 +43,9 @@ export default function App() {
   const [bossHit, setBossHit] = useState<number | null>(null);
   const [celebration, setCelebration] = useState<CelebrationData | null>(null);
 
-  const [avatar, setAvatar] = useState<string | null>(() => localStorage.getItem(AVATAR_KEY));
-
   const timers = useRef<{ toast?: number; xp?: number; hit?: number }>({});
+
+  const avatar = settings.avatar ?? null;
 
   const extras: Extra[] = useMemo(() => {
     try {
@@ -63,7 +66,21 @@ export default function App() {
     const [c, b, w, ws, d, s] = await Promise.all([
       api.getCharacter(), api.getBriefing(), api.getActiveWeek(), api.getWeeks(), api.getDebts(), api.getSettings(),
     ]);
-    setCharacter(c); setBriefing(b); setWeek(w); setWeeks(ws); setDebts(d); setSettings(s);
+    setCharacter(c); setBriefing(b); setWeek(w); setWeeks(ws); setDebts(d);
+
+    // Migração de uma vez: avatar que estava só neste navegador sobe para o banco.
+    const legado = localStorage.getItem(AVATAR_KEY_LEGADO);
+    if (!s.avatar && legado) {
+      try {
+        await api.putSetting("avatar", legado);
+        s.avatar = legado;
+        localStorage.removeItem(AVATAR_KEY_LEGADO);
+      } catch {
+        // sem drama: fica no navegador e tentamos na próxima carga
+      }
+    }
+
+    setSettings(s);
     setLoading(false);
   }
 
@@ -161,16 +178,20 @@ export default function App() {
 
   const handleAddExtra = (name: string, value: number) =>
     withBusy(async () => {
-      const next = [...extras, { name, value }];
+      // cada freela nasce com id: é o que deixa celular e painel adicionarem no mesmo
+      // dia sem gerar conflito (a fusão é por id, não pela lista inteira)
+      const next = [...extras, { id: crypto.randomUUID(), name, value, at: new Date().toISOString() }];
       await api.putSetting("extras", JSON.stringify(next));
       setSettings(await api.getSettings());
       flash("Quest secundária registrada: +" + money(value) + " no mês");
     });
 
-  const handlePickAvatar = (dataUrl: string) => {
-    localStorage.setItem(AVATAR_KEY, dataUrl);
-    setAvatar(dataUrl);
-  };
+  const handlePickAvatar = (dataUrl: string) =>
+    withBusy(async () => {
+      await api.putSetting("avatar", dataUrl);
+      setSettings(await api.getSettings());
+      flash("Foto atualizada — o celular recebe na próxima sincronização.");
+    });
 
   const toggleMenu = (m: Exclude<MenuId, null>) => {
     setMenu((cur) => {
@@ -243,6 +264,7 @@ export default function App() {
                 <BagPanel data={debts} busy={busy} onAddPurchase={handleAddPurchase} />
               )}
               {menu === "briefing" && <BriefingPanel briefing={briefing} />}
+              {menu === "celular" && <PairPanel />}
             </div>
             <div className="cascade-arrow" />
           </div>

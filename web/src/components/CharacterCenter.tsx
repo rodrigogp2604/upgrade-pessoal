@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import type { Character } from "../api";
 import { StarIcon } from "./icons";
+import { downscaleToDataUrl } from "../lib/image";
 
 // Ordem e posição dos atributos no hexágono (sentido horário a partir do topo).
 const RADAR_ORDER = [
@@ -92,11 +93,8 @@ export function CharacterCenter({ c, avatarUrl, onPickAvatar }: Props) {
           style={{ display: "none" }}
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (f) {
-              const reader = new FileReader();
-              reader.onload = () => onPickAvatar(reader.result as string);
-              reader.readAsDataURL(f);
-            }
+            // reduz antes de subir: a foto agora vive no banco e viaja no sync do celular
+            if (f) void downscaleToDataUrl(f).then(onPickAvatar);
             e.target.value = "";
           }}
         />

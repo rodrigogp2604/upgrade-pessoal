@@ -85,6 +85,28 @@ O painel detecta os momentos de transição e instrui: banco vazio mostra o onbo
 semana 100% concluída mostra "andar limpo — rode `/fechar-arco`". E celebra os
 eventos que merecem: level-up e chefão derrotado param a tela.
 
+### 4. O celular, sem nuvem no meio
+
+O jogo mora numa máquina só — mas as missões acontecem na rua. O app Android é
+**offline-first de verdade**: banco SQLite próprio, tudo funciona no modo avião, e quando
+o celular volta para a mesma rede do PC os dois se acertam. Não existe servidor de
+terceiro em lugar nenhum do caminho; o pareamento é um QR que o painel mostra na tela.
+
+O celular faz o *campo* — concluir missão, fotografar a prova, atacar chefão, lançar
+freela. O julgamento continua no PC: **fechar o arco e dar estrelas exige as provas na
+mão e conversa com o cowork**, então o servidor recusa essas operações vindas do app.
+
+A parte difícil é honesta: os dois lados podem ter mexido na mesma coisa. Cada ação do
+app vira uma **operação com id estável** numa fila local — reenviar não credita XP duas
+vezes. Quando há discordância real (você concluiu no ônibus, o PC desfez de propósito),
+nada é sobrescrito: aparece uma tela com **os dois lados lado a lado** e você escolhe.
+Até escolher, sua versão continua na tela.
+
+O APK também sai do próprio servidor: `scripts\build-apk.ps1` builda, publica em
+`data/apk/` e o painel mostra um QR de instalação — sem loja, sem cabo.
+
+> Protocolo completo, regras de conflito e armadilhas: **[docs/SYNC.md](docs/SYNC.md)**.
+
 ## Decisões de design que valem menção
 
 - **Zero dados fixos.** O banco nasce vazio; não existe seed de conteúdo. Toda
@@ -98,7 +120,11 @@ eventos que merecem: level-up e chefão derrotado param a tela.
 - **Provas são cidadãs de primeira classe.** Anexos por missão, contados na interface,
   exigidos na avaliação. O domingo discute fatos, não lembranças.
 - **Local-first radical.** SQLite + uploads numa pasta `data/`; backup é copiar a
-  pasta. Sem conta, sem nuvem, sem telemetria.
+  pasta. Sem conta, sem nuvem, sem telemetria — **inclusive no celular**: o app fala
+  direto com o PC pela rede local, e o APK é distribuído pelo próprio servidor.
+- **Conflito é decisão do usuário, não do código.** A sincronização resolve sozinha o
+  que dá (fusões por id, operações idempotentes) e **para** no que não dá, em vez de
+  eleger um vencedor silencioso.
 
 ## Stack
 
@@ -106,10 +132,12 @@ eventos que merecem: level-up e chefão derrotado param a tela.
 |---|---|
 | API | Node 20 · TypeScript · Express · Prisma · SQLite |
 | Painel | React 18 · Vite · TypeScript (CSS artesanal, sem framework de UI) |
-| Empacotamento | Docker — um container serve API + painel em `localhost:4000` |
+| App Android | Expo (React Native) · NativeWind · expo-sqlite · offline-first com fila de operações |
+| Empacotamento | Docker — um container serve API + painel em `localhost:4000`; APK servido pelo mesmo host |
 | Mestre de jogo | Claude Code / Cowork + skills em `.claude/skills/` |
 
 Detalhes de arquitetura, rotas da API e desenvolvimento: [docs/SETUP.md](docs/SETUP.md).
+Protocolo de sincronização: [docs/SYNC.md](docs/SYNC.md).
 
 ## Rodar em 4 linhas
 

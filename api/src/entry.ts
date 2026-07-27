@@ -3,6 +3,7 @@ import { execSync } from "node:child_process";
 import path from "node:path";
 import { createApp } from "./server";
 import { seedIfEmpty } from "./seed";
+import { repairLegacyDateTimes } from "./lib/repair-datetimes";
 
 async function main() {
   const apiRoot = path.resolve(__dirname, "..");
@@ -12,6 +13,9 @@ async function main() {
 
   const seeded = await seedIfEmpty();
   console.log(seeded ? "🌱 Seed inicial aplicado." : "✅ Banco já populado.");
+
+  // precisa vir antes de qualquer pull: é o que faz o cursor do app funcionar
+  await repairLegacyDateTimes();
 
   const PORT = Number(process.env.PORT) || 4000;
   createApp().listen(PORT, () => {

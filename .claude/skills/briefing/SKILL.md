@@ -84,6 +84,8 @@ Invoke-RestMethod -Uri http://localhost:4000/api/character -Method Put -ContentT
    `bonus` ("se tiver pique"), `xp` (25-80 conforme esforço/impacto) e
    `statGains` (ex.: `{ "Marca Pessoal": 6 }`, total de 2-20 pontos por missão).
    As missões são lineares: ordene do destravamento mais fácil para o mais difícil.
+   Opcional: `"kind": "side"` tira a missão da fila linear e a transforma em **quest de
+   XP bônus** (extra, não bloqueia nada). Sem `kind` ela é `main`. No máximo 1-2 `side`.
 
 ## 4. Fechar
 

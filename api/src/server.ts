@@ -10,11 +10,17 @@ import { attachmentsRouter } from "./routes/attachments";
 import { settingsRouter } from "./routes/settings";
 import { briefingRouter } from "./routes/briefing";
 import { titlesRouter } from "./routes/titles";
+import { syncRouter } from "./routes/sync";
+import { appRouter } from "./routes/app";
+import { errorHandler } from "./lib/http";
+import { repairLegacyDateTimes } from "./lib/repair-datetimes";
 
 export function createApp() {
   const app = express();
   app.use(cors());
-  app.use(express.json());
+  // 2mb (o padrão é 100kb): o avatar é um data URL dentro do JSON. O painel já reduz a
+  // foto para 256px, mas não quero que "escolhi a foto errada" vire erro 413.
+  app.use(express.json({ limit: "2mb" }));
 
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
   app.use("/api/character", characterRouter);
@@ -24,6 +30,8 @@ export function createApp() {
   app.use("/api/settings", settingsRouter);
   app.use("/api/briefing", briefingRouter);
   app.use("/api/titles", titlesRouter);
+  app.use("/api/sync", syncRouter);
+  app.use("/api/app", appRouter);
   app.use("/api", attachmentsRouter); // /api/missions/:id/attachments e /api/attachments/:id/*
 
   // Em produção, serve o frontend buildado (api/public)
@@ -33,6 +41,9 @@ export function createApp() {
     app.get("*", (_req, res) => res.sendFile(path.join(publicDir, "index.html")));
   }
 
+  // por último: traduz AppError dos services em status + json
+  app.use(errorHandler);
+
   return app;
 }
 
@@ -40,7 +51,11 @@ const PORT = Number(process.env.PORT) || 4000;
 
 // Quando executado direto (dev via tsx), sobe o servidor.
 if (require.main === module) {
-  createApp().listen(PORT, () => {
-    console.log(`🎮 Upgrade Pessoal API em http://localhost:${PORT}`);
-  });
+  repairLegacyDateTimes()
+    .catch((e) => console.error("aviso: não consegui normalizar as datas —", e))
+    .finally(() => {
+      createApp().listen(PORT, () => {
+        console.log(`🎮 Upgrade Pessoal API em http://localhost:${PORT}`);
+      });
+    });
 }
