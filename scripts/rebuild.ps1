@@ -1,4 +1,4 @@
-# Upgrade Pessoal — reconstrói a imagem após mudar o código
+﻿# Upgrade Pessoal — reconstrói a imagem após mudar o código
 $ErrorActionPreference = "Stop"
 $proj = Split-Path -Parent $PSScriptRoot
 Set-Location $proj

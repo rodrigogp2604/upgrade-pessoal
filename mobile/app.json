@@ -15,7 +15,11 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "output": "static",
@@ -42,7 +46,9 @@
       ],
       [
         "expo-camera",
-        { "cameraPermission": "Para ler o QR de pareamento com o PC." }
+        {
+          "cameraPermission": "Para ler o QR de pareamento com o PC."
+        }
       ],
       [
         "expo-build-properties",
@@ -56,6 +62,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2d2a48be-d834-44e7-bbfc-0fc28ee6ce1f"
+      }
+    },
+    "owner": "rodrigog2604"
   }
 }

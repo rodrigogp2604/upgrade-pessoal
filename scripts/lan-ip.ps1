@@ -1,4 +1,4 @@
-# Descobre o IPv4 da máquina na rede local.
+﻿# Descobre o IPv4 da máquina na rede local.
 #
 # Por que isso existe: dentro do container, o servidor só enxerga a rede do Docker
 # (172.x), que não serve para o celular achar o PC. Então quem descobre o IP de verdade

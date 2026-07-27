@@ -1,4 +1,4 @@
-# Upgrade Pessoal — gera o APK e publica no servidor local.
+﻿# Upgrade Pessoal — gera o APK e publica no servidor local.
 #
 # Fluxo: EAS builda na nuvem (esta máquina não tem Android SDK) → o artefato é baixado
 # para data/apk/ → o painel passa a mostrar o QR de instalação e o app avisa que existe
@@ -23,14 +23,41 @@ $versionCode = $appJson.expo.android.versionCode
 Write-Host "📦 Versão $versao (versionCode $versionCode)" -ForegroundColor Cyan
 Write-Host "   Para publicar uma versão nova, suba os dois em mobile/app.json antes de rodar." -ForegroundColor DarkGray
 
-# ---------- 2) build na nuvem ----------
+# ---------- 2) pré-requisitos do EAS ----------
+# O build roda sem interação, então login e vínculo do projeto precisam existir ANTES —
+# senão o erro que aparece é do EAS, críptico, no meio do build.
 Push-Location $mobile
+
+$projectId = $appJson.expo.extra.eas.projectId
+if (-not $projectId) {
+  Pop-Location
+  Write-Host ""
+  Write-Host "Este projeto ainda não está ligado a uma conta Expo. Rode uma vez:" -ForegroundColor Yellow
+  Write-Host ""
+  Write-Host "    cd mobile" -ForegroundColor White
+  Write-Host "    npx eas-cli login     # conta gratuita em expo.dev" -ForegroundColor White
+  Write-Host "    npx eas-cli init      # cria o projeto e grava o id em app.json" -ForegroundColor White
+  Write-Host ""
+  Fail "faltou o vínculo com o EAS (passos acima)"
+}
+
+$quem = npx eas-cli whoami 2>&1
+if ($LASTEXITCODE -ne 0) {
+  Pop-Location
+  Write-Host ""
+  Write-Host "Você não está logado no EAS. Rode: " -ForegroundColor Yellow -NoNewline
+  Write-Host "cd mobile; npx eas-cli login" -ForegroundColor White
+  Fail "login do EAS pendente"
+}
+Write-Host "👤 EAS: $quem" -ForegroundColor DarkGray
+
+# ---------- 3) build na nuvem ----------
 Write-Host ""
-Write-Host "☁️  Buildando no EAS (a primeira vez pede login e cria o keystore)..." -ForegroundColor Cyan
+Write-Host "☁️  Buildando no EAS (a 1ª vez cria o keystore — GUARDE ele, ver docs/SETUP.md)..." -ForegroundColor Cyan
 npx eas-cli build --platform android --profile preview --non-interactive --wait
 if ($LASTEXITCODE -ne 0) { Pop-Location; Fail "o build no EAS falhou (veja o log acima)" }
 
-# ---------- 3) baixar o artefato ----------
+# ---------- 4) baixar o artefato ----------
 New-Item -ItemType Directory -Force $apkDir | Out-Null
 $arquivo = Join-Path $apkDir "upgrade-pessoal-$versao.apk"
 
@@ -50,7 +77,7 @@ Pop-Location
 
 if (-not (Test-Path $arquivo)) { Fail "o APK não foi baixado" }
 
-# ---------- 4) manifesto (o servidor só publica o que tem hash conferido) ----------
+# ---------- 5) manifesto (o servidor só publica o que tem hash conferido) ----------
 $info = Get-Item $arquivo
 $hash = (Get-FileHash $arquivo -Algorithm SHA256).Hash.ToLower()
 
