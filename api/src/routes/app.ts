@@ -29,7 +29,9 @@ export type ApkManifest = {
 
 export function lerManifesto(): ApkManifest | null {
   try {
-    const bruto = fs.readFileSync(path.join(APK_DIR, "manifest.json"), "utf8");
+    // `replace` do BOM: editor ou script do Windows pode salvar o JSON com ele, e o
+    // JSON.parse quebra — o que faria o servidor jurar que não há APK publicado.
+    const bruto = fs.readFileSync(path.join(APK_DIR, "manifest.json"), "utf8").replace(/^﻿/, "");
     const m = JSON.parse(bruto) as ApkManifest;
     if (!m?.file || !fs.existsSync(path.join(APK_DIR, m.file))) return null;
     return m;

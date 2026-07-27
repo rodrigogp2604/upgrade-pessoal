@@ -3,6 +3,10 @@
 # Fluxo: EAS builda na nuvem (esta máquina não tem Android SDK) → o artefato é baixado
 # para data/apk/ → o painel passa a mostrar o QR de instalação e o app avisa que existe
 # versão nova. Nada disso passa por loja.
+#
+#   -ForceBuild   builda de novo mesmo já existindo um build pronto desta versão
+param([switch]$ForceBuild)
+
 $ErrorActionPreference = "Stop"
 $proj = Split-Path -Parent $PSScriptRoot
 $mobile = Join-Path $proj "mobile"
@@ -52,28 +56,54 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "👤 EAS: $quem" -ForegroundColor DarkGray
 
 # ---------- 3) build na nuvem ----------
-Write-Host ""
-Write-Host "☁️  Buildando no EAS (a 1ª vez cria o keystore — GUARDE ele, ver docs/SETUP.md)..." -ForegroundColor Cyan
-npx eas-cli build --platform android --profile preview --non-interactive --wait
-if ($LASTEXITCODE -ne 0) { Pop-Location; Fail "o build no EAS falhou (veja o log acima)" }
+# Cota de build não é infinita: se já existe um build PRONTO para esta mesma versão,
+# reaproveita. Publicar de novo (depois de um erro na etapa de download, por exemplo)
+# não deveria custar um build.
+$pronto = $null
+if (-not $ForceBuild) {
+  $lista = npx eas-cli build:list --platform android --limit 1 --json --non-interactive | ConvertFrom-Json
+  $ultimo = $lista[0]
+  if ($ultimo -and $ultimo.status -eq "FINISHED" -and $ultimo.appVersion -eq $versao -and [int]$ultimo.appBuildVersion -eq $versionCode) {
+    $pronto = $ultimo
+    Write-Host ""
+    Write-Host "♻️  Já existe build pronto da versão $versao ($($ultimo.id)) — reaproveitando." -ForegroundColor Yellow
+    Write-Host "   Use -ForceBuild para buildar mesmo assim." -ForegroundColor DarkGray
+  }
+}
+
+if (-not $pronto) {
+  Write-Host ""
+  Write-Host "☁️  Buildando no EAS (a 1ª vez cria o keystore — GUARDE ele, ver docs/SETUP.md)..." -ForegroundColor Cyan
+  npx eas-cli build --platform android --profile preview --non-interactive --wait
+  if ($LASTEXITCODE -ne 0) { Pop-Location; Fail "o build no EAS falhou (veja o log acima)" }
+}
 
 # ---------- 4) baixar o artefato ----------
+# Pela URL do artefato, e não por `build:download`: esse subcomando é para builds de
+# emulador e não aceita destino. `build:list --json` é estável entre versões da CLI.
 New-Item -ItemType Directory -Force $apkDir | Out-Null
 $arquivo = Join-Path $apkDir "upgrade-pessoal-$versao.apk"
 
 Write-Host ""
 Write-Host "⬇️  Baixando o APK..." -ForegroundColor Cyan
-npx eas-cli build:download --platform android --latest --output "$arquivo" 2>$null
 
-if (-not (Test-Path $arquivo)) {
-  # CLIs mais antigas não têm `build:download`: pega a URL do artefato pela listagem
-  Write-Host "   (usando build:list como alternativa)" -ForegroundColor DarkGray
-  $json = npx eas-cli build:list --platform android --limit 1 --json --non-interactive | ConvertFrom-Json
-  $url = $json[0].artifacts.applicationArchiveUrl
-  if (-not $url) { Pop-Location; Fail "não achei a URL do artefato do último build" }
+$json = npx eas-cli build:list --platform android --limit 1 --json --non-interactive | ConvertFrom-Json
+Pop-Location
+
+$build = $json[0]
+if (-not $build) { Fail "não achei nenhum build deste projeto no EAS" }
+if ($build.status -ne "FINISHED") { Fail "o último build está em '$($build.status)' — veja em expo.dev" }
+
+$url = $build.artifacts.applicationArchiveUrl
+if (-not $url) { Fail "o build terminou mas não tem artefato para baixar" }
+
+# APK tem mais de 100 MB: se o arquivo desta versão já está aqui, não baixa de novo
+# (rodar o script depois de um erro na publicação não deveria custar o download inteiro).
+if ((Test-Path $arquivo) -and ((Get-Item $arquivo).Length -gt 1MB) -and -not $ForceBuild) {
+  Write-Host "   já baixado — reaproveitando o arquivo local" -ForegroundColor DarkGray
+} else {
   Invoke-WebRequest -Uri $url -OutFile $arquivo
 }
-Pop-Location
 
 if (-not (Test-Path $arquivo)) { Fail "o APK não foi baixado" }
 
@@ -91,7 +121,13 @@ $manifesto = [ordered]@{
   sizeBytes   = $info.Length
   sha256      = $hash
 }
-$manifesto | ConvertTo-Json | Set-Content (Join-Path $apkDir "manifest.json") -Encoding UTF8
+# UTF-8 SEM BOM: `Set-Content -Encoding UTF8` no Windows PowerShell 5.1 escreve BOM,
+# e JSON.parse do Node engasga com ele — o servidor descartaria o manifesto calado.
+[System.IO.File]::WriteAllText(
+  (Join-Path $apkDir "manifest.json"),
+  ($manifesto | ConvertTo-Json),
+  [System.Text.UTF8Encoding]::new($false)
+)
 
 # limpa versões antigas: o servidor entrega uma só
 Get-ChildItem $apkDir -Filter "*.apk" | Where-Object { $_.Name -ne $info.Name } | Remove-Item -Force
