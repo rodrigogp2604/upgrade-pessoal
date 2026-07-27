@@ -42,6 +42,10 @@ export interface SyncInfo {
   hostLanIpFromEnv: string | null; devices: SyncDevice[];
 }
 export interface Pairing { token: string; hosts: string[]; port: number; protocol: number; }
+export interface ApkPublicado {
+  publicado: boolean; version?: string; versionCode?: number; builtAt?: string;
+  sizeBytes?: number; comoPublicar?: string;
+}
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
@@ -91,6 +95,7 @@ export const api = {
 
   getSyncInfo: () => req<SyncInfo>("/api/sync/info"),
   newPairing: () => req<Pairing>("/api/sync/pair/new", { method: "POST" }),
+  getApk: () => req<ApkPublicado>("/api/app/latest"),
 };
 
 export function brl(n: number): string {

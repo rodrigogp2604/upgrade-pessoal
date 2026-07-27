@@ -60,7 +60,13 @@ async function pedir<T>(
   }
 }
 
-export type PingResposta = { ok: boolean; protocol: number; serverTime: string };
+export type PingResposta = {
+  ok: boolean;
+  protocol: number;
+  serverTime: string;
+  /** versão publicada no PC — é assim que o app sabe que envelheceu (não há loja) */
+  latestApp: { version: string; versionCode: number; url: string } | null;
+};
 
 export const ping = (p: Pairing, dev: string) =>
   pedir<PingResposta>(p, dev, "/api/sync/ping", { timeout: TIMEOUT_PING });

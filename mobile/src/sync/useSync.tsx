@@ -6,8 +6,9 @@
 import {
   createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
 } from "react";
-import { AppState } from "react-native";
+import { AppState, Linking } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
+import * as Application from "expo-application";
 import { sincronizar, type Estado } from "./engine";
 import { esquecerPareamento, lerPareamento, salvarPareamento, trocarHost, type Pairing } from "./pairing";
 import { procurarNaRede } from "./client";
@@ -30,6 +31,9 @@ type SyncContext = {
   mudarHost: (host: string, port?: number) => Promise<void>;
   procurarPc: () => Promise<string | null>;
   procurando: { testados: number; total: number } | null;
+  /** o PC publicou uma versão mais nova que a instalada */
+  atualizacao: { versao: string; host: string } | null;
+  baixarAtualizacao: () => void;
 };
 
 const Ctx = createContext<SyncContext | null>(null);
@@ -45,21 +49,30 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [ultimaSync, setUltimaSync] = useState<string | null>(null);
   const [pareamento, setPareamento] = useState<Pairing | null>(null);
   const [procurando, setProcurando] = useState<{ testados: number; total: number } | null>(null);
+  const [atualizacao, setAtualizacao] = useState<{ versao: string; host: string } | null>(null);
 
   // trava simples: duas rodadas ao mesmo tempo enviariam a mesma operação duas vezes
   const rodando = useRef(false);
 
   const atualizarContadores = useCallback(async () => {
-    const [p, c, ultima, par] = await Promise.all([
+    const [p, c, ultima, par, versaoPublicada, codigoPublicado] = await Promise.all([
       countPending(db),
       countConflicts(db),
       getSyncState(db, "lastSyncAt"),
       lerPareamento(db),
+      getSyncState(db, "latestAppVersion"),
+      getSyncState(db, "latestAppVersionCode"),
     ]);
     setPendentes(p);
     setConflitos(c);
     setUltimaSync(ultima);
     setPareamento(par);
+
+    // sem loja, o próprio PC avisa que existe versão nova
+    const instalado = Number(Application.nativeBuildVersion ?? 0);
+    const publicado = Number(codigoPublicado ?? 0);
+    setAtualizacao(publicado > instalado && versaoPublicada ? { versao: versaoPublicada, host: par?.host ?? "" } : null);
+
     return par;
   }, [db]);
 
@@ -157,6 +170,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     mudarHost,
     procurarPc,
     procurando,
+    atualizacao,
+    // o app nunca instala sozinho: abre o download e o Android conduz
+    baixarAtualizacao: () => {
+      if (pareamento) void Linking.openURL(`http://${pareamento.host}:${pareamento.port}/api/app/download`);
+    },
   };
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;

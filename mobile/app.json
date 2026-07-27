@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "br.dev.upgradepessoal",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#2b2b2b",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

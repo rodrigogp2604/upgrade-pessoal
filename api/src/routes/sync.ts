@@ -8,6 +8,7 @@ import { lanIps } from "../lib/sync/net";
 import { rateLimit } from "../lib/sync/ratelimit";
 import { push, pull, type PushOp } from "../services/sync.service";
 import { addAttachment } from "../services/attachments.service";
+import { lerManifesto } from "./app";
 
 export const syncRouter = Router();
 
@@ -55,7 +56,17 @@ syncRouter.use(rateLimit(), requireSyncToken);
 syncRouter.get(
   "/ping",
   route(async (_req, res) => {
-    res.json({ ok: true, protocol: APP_PROTOCOL_VERSION, serverTime: new Date().toISOString() });
+    // `latestApp` viaja aqui para o próprio app perceber que envelheceu: sem loja,
+    // ninguém avisa que existe versão nova.
+    const manifesto = lerManifesto();
+    res.json({
+      ok: true,
+      protocol: APP_PROTOCOL_VERSION,
+      serverTime: new Date().toISOString(),
+      latestApp: manifesto
+        ? { version: manifesto.version, versionCode: manifesto.versionCode, url: "/api/app/download" }
+        : null,
+    });
   })
 );
 

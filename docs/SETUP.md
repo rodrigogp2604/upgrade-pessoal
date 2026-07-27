@@ -57,12 +57,48 @@ Regras de progressão: **100 XP por nível** · nível = andar da Torre · estre
 fechamento: 2★ +10 · 3★ +25 · 4★ +45 · 5★ +70 XP · Saúde Financeira = 50% bolsa de
 ouro vs meta + 50% dívidas pagas.
 
+## O app no celular
+
+O app Android é offline-first: funciona longe do PC e sincroniza quando volta para a
+mesma rede. Ele faz o "campo" (concluir missão, anexar prova, atacar chefão, renda);
+o arco da semana continua sendo fechado aqui, com o cowork.
+
+**1. Gerar o APK** (precisa de conta gratuita no [Expo](https://expo.dev); o build roda
+na nuvem porque esta máquina não precisa do Android SDK):
+
+```powershell
+scripts\build-apk.ps1
+```
+
+O script builda, baixa o artefato para `data/apk/` e publica no servidor local.
+
+**2. Instalar** — no painel, ícone de celular → QR **"Instalar no celular"**. Aponte a
+câmera, baixe e instale. Na primeira vez o Android pede para autorizar
+*"instalar apps de fontes desconhecidas"* para o navegador — é uma vez só.
+
+**3. Parear** — no mesmo painel, **"Parear celular"** gera o QR com endereço + token.
+No app, toque em *Ler o QR do painel*. Pronto: ele baixa seu jogo e passa a sincronizar
+sozinho ao abrir e a cada 5 minutos.
+
+> Suba sempre pelo atalho **"Subir a Torre"** (ou `scripts\start.ps1`): é ele que
+> descobre o IP da máquina na rede e o entrega ao servidor. Sem isso o QR sai com o IP
+> interno do Docker, que o celular não alcança.
+
+**Atualizar depois:** suba `version` e `versionCode` em `mobile/app.json`, rode
+`scripts\build-apk.ps1` de novo. O app avisa sozinho na próxima sincronização.
+
+⚠️ **Guarde o keystore.** O EAS cria uma chave de assinatura no primeiro build
+(`npx eas-cli credentials` para baixar). APK assinado com chave diferente não atualiza
+por cima: obriga desinstalar — e desinstalar leva junto o banco local do celular, com
+as ações que ainda não subiram.
+
 ## Onde ficam os dados
 
 Tudo em **`data/`** (fora do git):
 
 - `data/upgrade.db` — SQLite com personagem, briefing, arcos, missões, chefões, configs
 - `data/uploads/` — as provas anexadas
+- `data/apk/` — o APK publicado + `manifest.json` (o que o celular baixa)
 
 **Backup / trocar de máquina = copiar a pasta `data/`.** Nada fica no navegador
 (exceto a foto do avatar, cosmética) e nada sai da sua máquina.
@@ -83,6 +119,7 @@ Em produção (Docker) a API serve o build do front (`api/public`). Após mudar 
 ```
 api/          Express + Prisma (rotas em src/routes, regras do jogo em src/domain.ts)
 web/          React + Vite (painel de tela única; componentes em src/components)
+mobile/       App Android (Expo + NativeWind + SQLite local) — ver docs/PLANO-MOBILE.md
 .claude/
   skills/     /briefing e /fechar-arco — o "cérebro" do mestre de jogo
 scripts/      PowerShell de conveniência (start, stop, rebuild, backup, atalho)
@@ -102,6 +139,11 @@ POST /api/weeks              abre arco · POST /api/weeks/:id/close fecha (estre
 POST /api/missions/:id/complete|uncomplete|attachments
 GET/POST /api/debts          chefões (kind: debt|item) · POST /api/debts/:id/pay ataca
 GET/PUT  /api/settings       chaves livres (pouch, pouch_goal, income_*, extras)
+
+GET  /api/sync/info          IPs da máquina + aparelhos pareados (painel)
+POST /api/sync/pair/new      gera token novo (invalida os aparelhos atuais)
+GET/POST /api/sync/*         ping, hello, pull, push, attachments — exigem Bearer token
+GET  /api/app/latest         versão do APK publicado · GET /api/app/download baixa
 ```
 
 A API roda só em `localhost` e não tem autenticação — é um app single-player local.

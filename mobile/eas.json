@@ -1,0 +1,16 @@
+{
+  "cli": { "version": ">= 12.0.0", "appVersionSource": "local" },
+  "build": {
+    "preview": {
+      "//": "APK instalável direto no aparelho. Sem loja: a distribuição é o servidor local do projeto (ver scripts/build-apk.ps1).",
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "channel": "preview"
+    },
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": { "buildType": "apk" }
+    }
+  }
+}

@@ -36,7 +36,10 @@ export async function sincronizar(db: SQLiteDatabase): Promise<Resultado> {
   const dev = await deviceId(db);
 
   try {
-    await ping(pareamento, dev);
+    const pong = await ping(pareamento, dev);
+    // guarda o que o PC publicou; a interface compara com a versão instalada
+    await setSyncState(db, "latestAppVersion", pong.latestApp?.version ?? "");
+    await setSyncState(db, "latestAppVersionCode", String(pong.latestApp?.versionCode ?? 0));
   } catch (e) {
     const erro = e as SyncError;
     return { ...base, estado: erro.code === "unauthorized" ? "erro" : "offline", mensagem: erro.message };

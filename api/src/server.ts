@@ -11,6 +11,7 @@ import { settingsRouter } from "./routes/settings";
 import { briefingRouter } from "./routes/briefing";
 import { titlesRouter } from "./routes/titles";
 import { syncRouter } from "./routes/sync";
+import { appRouter } from "./routes/app";
 import { errorHandler } from "./lib/http";
 import { repairLegacyDateTimes } from "./lib/repair-datetimes";
 
@@ -30,6 +31,7 @@ export function createApp() {
   app.use("/api/briefing", briefingRouter);
   app.use("/api/titles", titlesRouter);
   app.use("/api/sync", syncRouter);
+  app.use("/api/app", appRouter);
   app.use("/api", attachmentsRouter); // /api/missions/:id/attachments e /api/attachments/:id/*
 
   // Em produção, serve o frontend buildado (api/public)

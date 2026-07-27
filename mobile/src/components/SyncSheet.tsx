@@ -32,6 +32,7 @@ export function SyncSheet({ visivel, fechar }: { visivel: boolean; fechar: () =>
   const {
     estado, mensagem, pendentes, conflitos, ultimaSync, pareamento,
     sincronizarAgora, procurarPc, procurando, despareamento, mudarHost,
+    atualizacao, baixarAtualizacao,
   } = useSync();
 
   const [editandoIp, setEditandoIp] = useState(false);
@@ -72,6 +73,17 @@ export function SyncSheet({ visivel, fechar }: { visivel: boolean; fechar: () =>
             <Text className="font-sans text-[12px] text-ink">{quando(ultimaSync)}</Text>
           </View>
         </View>
+
+        {atualizacao && (
+          <Pressable
+            onPress={baixarAtualizacao}
+            className={`${linha} mt-3 border-[1.5px] border-accent bg-amberSoft`}
+          >
+            <Text className="font-display text-[14px] tracking-[1.2px] text-accentInk">
+              NOVA VERSÃO ({atualizacao.versao}) · TOCAR PARA ATUALIZAR
+            </Text>
+          </Pressable>
+        )}
 
         {conflitos > 0 && (
           <Pressable

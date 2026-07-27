@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { api, type Pairing, type SyncInfo } from "../../api";
+import { api, type ApkPublicado, type Pairing, type SyncInfo } from "../../api";
 import { PhoneIcon, RefreshIcon } from "../icons";
 
 // Tela de pareamento do celular. O QR carrega o endereço do PC + o token;
@@ -28,11 +28,13 @@ export function PairPanel() {
   const [busy, setBusy] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [apk, setApk] = useState<ApkPublicado | null>(null);
 
   const carregar = async () => {
     try {
-      const i = await api.getSyncInfo();
+      const [i, a] = await Promise.all([api.getSyncInfo(), api.getApk().catch(() => null)]);
       setInfo(i);
+      setApk(a);
       setHost((atual) => atual || i.hostLanIpFromEnv || i.lanIps.find((ip) => !ip.startsWith("172.")) || i.lanIps[0] || "");
     } catch {
       setErro("não consegui falar com o servidor");
@@ -172,6 +174,32 @@ export function PairPanel() {
         )}
 
         {erro && <div style={{ fontSize: 11.5, color: "#c0392b" }}>{erro}</div>}
+
+        {/* instalar o app: o mesmo servidor que guarda o jogo entrega o APK */}
+        <div style={{ borderTop: "1px solid #eee9e1", paddingTop: 11 }}>
+          <div style={{ fontSize: 11, letterSpacing: 1.5, color: "var(--mut2)", fontWeight: 600, marginBottom: 7 }}>
+            INSTALAR NO CELULAR
+          </div>
+          {apk?.publicado && host ? (
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={{ background: "#fff", padding: 7, borderRadius: 4, lineHeight: 0, flex: "none" }}>
+                <QRCodeSVG value={`http://${host}:${info.port}/api/app/download`} size={104} level="M" marginSize={0} />
+              </div>
+              <div style={{ fontSize: 11.5, color: "var(--mut2)", lineHeight: 1.5 }}>
+                Versão <b style={{ color: "var(--amber-dk)" }}>{apk.version}</b>
+                {apk.sizeBytes ? ` · ${Math.round(apk.sizeBytes / 1024 / 1024)} MB` : ""}
+                <br />
+                Aponte a câmera e baixe. Na primeira vez o Android pede para autorizar a
+                instalação de fontes desconhecidas.
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 11.5, color: "var(--faint)", lineHeight: 1.5 }}>
+              Nenhum APK publicado ainda. Rode <code>scripts\build-apk.ps1</code> no PC — ele builda,
+              baixa e publica aqui.
+            </div>
+          )}
+        </div>
 
         <div style={{ borderTop: "1px solid #eee9e1", paddingTop: 11 }}>
           <div style={{ fontSize: 11, letterSpacing: 1.5, color: "var(--mut2)", fontWeight: 600, marginBottom: 7, display: "flex", alignItems: "center", gap: 6 }}>
