@@ -17,7 +17,6 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO",
         "android.permission.CAMERA"
       ]
     },
@@ -41,13 +40,16 @@
         "expo-image-picker",
         {
           "photosPermission": "As provas das suas missões saem da galeria.",
-          "cameraPermission": "Para fotografar a prova de uma missão."
+          "cameraPermission": "Para fotografar a prova de uma missão.",
+          "microphonePermission": false
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Para ler o QR de pareamento com o PC."
+          "cameraPermission": "Para ler o QR de pareamento com o PC.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [
