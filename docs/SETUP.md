@@ -14,7 +14,7 @@ Guia operacional do Upgrade Pessoal. O que o projeto **é** está no
 ## Instalação
 
 ```bash
-git clone <repo>
+git clone https://github.com/rodrigogpaulino/upgrade-pessoal.git
 cd upgrade-pessoal
 docker compose up -d
 ```

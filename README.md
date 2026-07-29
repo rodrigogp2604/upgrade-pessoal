@@ -142,7 +142,7 @@ Protocolo de sincronização: [docs/SYNC.md](docs/SYNC.md).
 ## Rodar em 4 linhas
 
 ```bash
-git clone <repo> && cd upgrade-pessoal
+git clone https://github.com/rodrigogpaulino/upgrade-pessoal.git && cd upgrade-pessoal
 docker compose up -d          # painel em http://localhost:4000
 claude                        # Claude Code na pasta do projeto
 > /briefing                   # a entrevista que cria o seu jogo
@@ -150,3 +150,7 @@ claude                        # Claude Code na pasta do projeto
 
 Passo a passo completo (Windows, atalho de desktop, desenvolvimento local, backup):
 **[docs/SETUP.md](docs/SETUP.md)**.
+
+## Licença
+
+[MIT](LICENSE) — use, modifique e jogue à vontade.
