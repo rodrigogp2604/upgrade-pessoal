@@ -21,6 +21,9 @@ data/*
 # backups locais (inclui o histórico git da era pessoal)
 backups/
 
+# guia de estudo pessoal (notas para apresentar o projeto) — não é documentação do repo
+for-me.md
+
 # logs / sistema
 *.log
 .DS_Store
