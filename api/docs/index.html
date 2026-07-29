@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Upgrade Pessoal · API</title>
+<!-- mesmo ícone do painel e do app; servido da raiz (assets/torre.* via build do web) -->
+<link rel="icon" type="image/svg+xml" href="/torre.svg" />
+<link rel="alternate icon" href="/torre.ico" sizes="any" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+  rel="stylesheet"
+/>
+<style>
+:root {
+  --amber: #f2a41c;
+  --amber-dk: #c47d0e;
+  --amber-lt: #f7c14f;
+  --ink: #2b2b2b;
+  --mut: #7a746c;
+  --mut2: #8a847c;
+  --faint: #a49d95;
+  --pale: #c9c2ba;
+  --line: #f0ece5;
+  --line2: #e7e2da;
+  --soft: #faf8f4;
+  --red: #c0392b;
+  --green: #4d7d3d;
+  --dark: #232323;
+  --disp: "Rajdhani", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  color: var(--ink);
+  background: #ece8e1;
+  overflow: hidden;
+}
+button, input, textarea { font-family: inherit; }
+a { color: var(--amber-dk); text-decoration: none; }
+a:hover { color: var(--amber); }
+::selection { background: rgba(242, 164, 28, .35); }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes riseIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+/* ---------- shell ---------- */
+.app {
+  height: 100vh;
+  min-height: 620px;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(168deg, #f6f4ef 0%, #ece8e1 55%, #e3ded5 100%);
+  position: relative;
+  overflow: hidden;
+}
+.topline { height: 4px; flex: none; background: linear-gradient(90deg, var(--amber), var(--amber-lt) 40%, var(--amber)); }
+.watermark {
+  position: absolute; right: 56px; bottom: -46px;
+  font-family: var(--disp); font-size: 200px; font-weight: 700;
+  color: rgba(43, 43, 43, .04); letter-spacing: 10px; line-height: 1;
+  pointer-events: none; user-select: none;
+}
+
+/* ---------- header ---------- */
+.head {
+  flex: none; display: flex; align-items: center; gap: 16px;
+  padding: 15px 30px 13px; position: relative; z-index: 5; flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: 11px; }
+.mark {
+  width: 24px; height: 24px; background: var(--amber); border-radius: 3px;
+  transform: rotate(45deg); display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 3px 8px rgba(242, 164, 28, .45);
+}
+.mark i { width: 9px; height: 9px; background: #fff; border-radius: 1px; display: block; }
+.brand b { font-family: var(--disp); font-weight: 700; font-size: 17px; letter-spacing: 3.5px; }
+.badge {
+  font-family: var(--disp); font-weight: 600; font-size: 12px; letter-spacing: 2px;
+  color: var(--amber-dk); border: 1px solid rgba(242, 164, 28, .55);
+  padding: 2px 9px; border-radius: 10px;
+}
+.spacer { flex: 1; }
+.search {
+  display: flex; align-items: center; gap: 9px; background: #fff; border: 1px solid var(--line2);
+  border-radius: 3px; padding: 6px 12px; width: 290px; box-shadow: 0 2px 8px rgba(43, 37, 35, .07);
+}
+.search svg { flex: none; color: var(--faint); }
+.search input { border: 0; outline: 0; flex: 1; font-size: 12.5px; color: var(--ink); background: transparent; min-width: 0; }
+.search input::placeholder { color: var(--faint); }
+.search kbd {
+  font-family: var(--mono); font-size: 10.5px; color: var(--faint);
+  border: 1px solid #e0dad1; border-radius: 2px; padding: 1px 5px;
+}
+.nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.nav button {
+  font-family: var(--disp); font-weight: 600; font-size: 13.5px; letter-spacing: 1.8px;
+  padding: 7px 12px; border-radius: 3px; cursor: pointer; border: 0; background: transparent;
+  color: var(--mut2); transition: all .18s;
+}
+.nav button:hover { color: var(--ink); }
+.nav button.sel { color: var(--ink); background: #fff; box-shadow: 0 2px 8px rgba(43, 37, 35, .1); }
+.play-toggle {
+  display: flex; align-items: center; gap: 7px; background: var(--ink); color: #fff;
+  padding: 7px 13px; border-radius: 3px; border: 0; cursor: pointer;
+  font-family: var(--disp); font-weight: 700; font-size: 13px; letter-spacing: 1.5px;
+  transition: background .18s;
+}
+.play-toggle:hover { background: var(--amber); }
+.play-toggle.on { background: var(--amber); color: #1a1a1a; }
+
+/* ---------- body ---------- */
+.body {
+  flex: 1; min-height: 0; display: grid; grid-template-columns: 262px 1fr;
+  gap: 20px; padding: 2px 30px 24px; position: relative; z-index: 4;
+}
+.rail { display: flex; flex-direction: column; gap: 9px; min-height: 0; overflow-y: auto; padding-right: 2px; }
+.rail-title {
+  font-family: var(--disp); font-weight: 600; font-size: 11.5px; letter-spacing: 2.5px;
+  color: var(--mut2); padding-left: 2px; flex: none;
+}
+.res-card {
+  background: #fff; border-radius: 4px; padding: 11px 14px; cursor: pointer; flex: none;
+  box-shadow: 0 3px 10px rgba(43, 37, 35, .1); border-left: 3px solid transparent;
+  transition: all .22s cubic-bezier(.2, 1.3, .4, 1); text-align: left; border-top: 0; border-right: 0; border-bottom: 0; width: 100%;
+  font: inherit; color: inherit;
+}
+.res-card:hover { transform: translateX(3px); }
+.res-card.sel {
+  background: var(--ink); color: #fff; border-left-color: var(--amber);
+  box-shadow: 0 8px 22px rgba(43, 37, 35, .28);
+}
+.res-card .top { display: flex; align-items: center; gap: 9px; }
+.res-card .name { font-family: var(--disp); font-weight: 700; font-size: 17px; letter-spacing: 1.5px; flex: 1; }
+.res-card .count { font-family: var(--disp); font-weight: 700; font-size: 12.5px; color: var(--amber-dk); }
+.res-card.sel .count { color: var(--amber); }
+.res-card .desc { font-size: 11.5px; opacity: .75; margin-top: 2px; }
+.res-card .meths { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
+.doc-card {
+  background: #fff; border-radius: 4px; padding: 11px 14px; flex: none;
+  box-shadow: 0 3px 10px rgba(43, 37, 35, .1); border-left: 3px solid var(--amber);
+}
+.doc-card .t { font-family: var(--disp); font-weight: 700; font-size: 14px; letter-spacing: 1.5px; }
+.doc-card .s { font-size: 11.5px; color: var(--mut); margin-top: 2px; line-height: 1.45; }
+.rail-note {
+  background: #fff; border-radius: 4px; padding: 11px 13px; flex: none;
+  box-shadow: 0 3px 10px rgba(43, 37, 35, .1); font-size: 11.5px; color: var(--mut); line-height: 1.5;
+}
+.rail-note b { font-family: var(--disp); letter-spacing: 1.5px; font-size: 12px; color: var(--ink); }
+
+/* ---------- método ---------- */
+.m {
+  font-family: var(--disp); font-weight: 700; font-size: 10.5px; letter-spacing: 1.3px;
+  padding: 2px 7px; border-radius: 2px; flex: none; min-width: 46px; text-align: center;
+  display: inline-block; color: #fff; background: var(--mut);
+}
+.m.sm { font-size: 9.5px; min-width: 0; }
+.m.GET { background: var(--amber); color: var(--ink); }
+.m.POST { background: var(--ink); }
+.m.PUT, .m.PATCH { background: var(--mut); }
+.m.DELETE { background: var(--red); }
+.res-card.sel .m.POST { background: var(--amber); color: #1a1a1a; }
+
+/* ---------- conteúdo ---------- */
+.content { min-height: 0; display: flex; flex-direction: column; gap: 14px; }
+.view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px; animation: fadeIn .25s ease-out; }
+.view.scroll { overflow-y: auto; }
+.panel { background: #fff; border-radius: 5px; box-shadow: 0 8px 26px rgba(43, 37, 35, .14); }
+.panel.flat { box-shadow: 0 4px 14px rgba(43, 37, 35, .1); }
+.eyebrow { font-family: var(--disp); font-weight: 600; font-size: 11.5px; letter-spacing: 3.5px; color: var(--mut2); }
+.h1 { font-family: var(--disp); font-weight: 700; font-size: 30px; letter-spacing: 1.5px; line-height: 1.1; }
+.h2 { font-family: var(--disp); font-weight: 700; font-size: 13px; letter-spacing: 2.5px; color: var(--mut2); }
+.lead { font-size: 13px; color: #5a544d; line-height: 1.6; margin-top: 6px; max-width: 720px; }
+code, .mono { font-family: var(--mono); }
+.k { font-family: var(--mono); color: var(--amber-dk); }
+
+/* tabela de rotas */
+.routes { padding: 18px 22px 10px; flex: none; max-height: 46%; overflow-y: auto; }
+.routes .head-row {
+  display: grid; grid-template-columns: 78px 1fr 160px; gap: 12px; margin-top: 14px;
+  padding-bottom: 7px; border-bottom: 1.5px solid var(--ink);
+  font-family: var(--disp); font-weight: 700; font-size: 11px; letter-spacing: 2px; color: var(--mut2);
+}
+.routes .row {
+  display: grid; grid-template-columns: 78px 1fr 160px; gap: 12px; padding: 9px 8px; margin: 0 -8px;
+  border-bottom: 1px solid var(--line); align-items: center; cursor: pointer;
+  transition: background .18s; background: transparent; width: calc(100% + 16px);
+  border-left: 0; border-right: 0; border-top: 0; text-align: left; font: inherit; color: inherit;
+}
+.routes .row:hover { background: var(--soft); }
+.routes .row.sel { background: #fdf3e0; }
+.routes .row .p { font-family: var(--mono); font-size: 12.5px; }
+.routes .row .d { font-size: 11.5px; color: var(--mut2); margin-top: 2px; }
+.routes .row .r { font-family: var(--mono); font-size: 11.5px; color: var(--mut); }
+.lock { font-size: 10px; color: var(--amber-dk); border: 1px solid rgba(242, 164, 28, .5); border-radius: 2px; padding: 0 4px; margin-left: 6px; }
+.empty { padding: 22px 4px; color: var(--mut2); font-size: 13px; }
+
+/* painéis requisição / resposta */
+.panes { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.pane { border-radius: 5px; padding: 16px 18px; display: flex; flex-direction: column; overflow: hidden; min-height: 220px; }
+.pane.req { background: var(--dark); }
+.pane.res { background: #fff; box-shadow: 0 8px 26px rgba(43, 37, 35, .14); }
+.pane .bar { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; flex-wrap: wrap; }
+.pane .tag { font-family: var(--disp); font-weight: 700; font-size: 11px; letter-spacing: 2.5px; }
+.pane.req .tag { color: var(--amber); }
+.pane.res .tag { color: var(--mut2); }
+.pane .route { font-family: var(--mono); font-size: 11px; color: var(--mut2); }
+.langs { display: flex; gap: 2px; }
+.langs button {
+  font-family: var(--disp); font-weight: 600; font-size: 10.5px; letter-spacing: 1.5px;
+  padding: 2px 8px; border-radius: 2px; cursor: pointer; border: 0; background: transparent; color: #6f6a63;
+}
+.langs button.sel { color: #fff; background: rgba(255, 255, 255, .1); }
+.chips { display: flex; gap: 7px; flex-wrap: wrap; margin: 6px 0 10px; }
+.chip {
+  font-family: var(--mono); font-size: 10.5px; color: var(--pale);
+  background: rgba(255, 255, 255, .07); border-radius: 2px; padding: 2px 7px;
+}
+pre { margin: 0; font-family: var(--mono); font-size: 11.5px; line-height: 1.75; white-space: pre-wrap; overflow-y: auto; }
+.pane.req pre { color: #d8d3cc; }
+.pane.res pre { color: #5a544d; flex: 1; }
+.status-ok {
+  font-family: var(--mono); font-size: 10.5px; color: var(--green);
+  border: 1px solid rgba(77, 125, 61, .4); padding: 1px 7px; border-radius: 2px;
+}
+.status-ok.bad { color: var(--red); border-color: rgba(192, 57, 43, .4); }
+.errcode { font-family: var(--mono); font-size: 10.5px; color: var(--red); }
+.note { display: flex; gap: 9px; align-items: flex-start; border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+.note svg { flex: none; margin-top: 2px; }
+.note div { font-size: 11.5px; color: var(--mut); line-height: 1.5; }
+
+/* playground */
+.pg { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+.pg label { font-family: var(--disp); font-weight: 600; font-size: 10.5px; letter-spacing: 2px; color: var(--mut2); }
+.pg input, .pg textarea {
+  background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 3px; color: #e6e1da;
+  font-family: var(--mono); font-size: 11.5px; padding: 8px 10px; outline: 0; width: 100%; resize: vertical;
+}
+.pg input:focus, .pg textarea:focus { border-color: var(--amber); }
+.pg .send {
+  align-self: flex-start; background: var(--amber); color: #1a1a1a; border: 0; border-radius: 3px;
+  padding: 8px 16px; cursor: pointer; font-family: var(--disp); font-weight: 700; font-size: 13px; letter-spacing: 1.5px;
+}
+.pg .send:disabled { opacity: .5; cursor: default; }
+.pg .warn { font-size: 11px; color: #b9a37a; line-height: 1.5; }
+
+/* confirmação do playground */
+.backdrop {
+  position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: rgba(43, 37, 35, .55); backdrop-filter: blur(3px);
+  animation: fadeIn .16s ease-out;
+}
+.backdrop[hidden] { display: none; }
+.modal {
+  width: 100%; max-width: 460px; background: #fff; border-radius: 5px; overflow: hidden;
+  box-shadow: 0 24px 60px rgba(43, 37, 35, .38); animation: riseIn .2s cubic-bezier(.2, 1.1, .4, 1);
+}
+.modal .bar-top { height: 4px; background: linear-gradient(90deg, var(--amber), var(--amber-lt) 40%, var(--amber)); }
+.modal .inner { padding: 20px 22px 18px; }
+.modal .route { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.modal .route .path { font-family: var(--mono); font-size: 12.5px; color: var(--mut); word-break: break-all; }
+.modal .h1 { font-size: 22px; margin-top: 12px; }
+.modal p { font-size: 12.5px; color: #5a544d; line-height: 1.6; margin: 6px 0 0; }
+.modal .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.modal .btn {
+  font-family: var(--disp); font-weight: 700; font-size: 13px; letter-spacing: 1.5px;
+  padding: 9px 16px; border-radius: 3px; cursor: pointer; border: 1px solid transparent; transition: all .16s;
+}
+.modal .btn.ghost { background: transparent; border-color: var(--line2); color: var(--mut); }
+.modal .btn.ghost:hover { border-color: var(--mut2); color: var(--ink); }
+.modal .btn.primary { background: var(--ink); color: #fff; }
+.modal .btn.primary:hover { background: var(--amber); color: #1a1a1a; }
+.modal .btn.primary.danger { background: var(--red); }
+.modal .btn.primary.danger:hover { background: #a93226; color: #fff; }
+.modal .btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+/* blocos de conteúdo dos guias */
+.hero { background: var(--ink); color: #fff; border-radius: 5px; padding: 24px 26px; box-shadow: 0 10px 30px rgba(43, 37, 35, .25); }
+.hero .eyebrow { color: var(--amber); }
+.hero .h1 { font-size: 34px; margin-top: 4px; }
+.hero p { font-size: 13.5px; color: var(--pale); max-width: 680px; margin: 6px 0 0; line-height: 1.6; }
+.facts { display: flex; gap: 22px; margin-top: 18px; flex-wrap: wrap; }
+.facts .lbl { font-size: 10.5px; letter-spacing: 1.5px; color: var(--mut2); font-weight: 600; }
+.facts .val { font-family: var(--mono); font-size: 13px; }
+.facts .val.amber { color: var(--amber); }
+.g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.g-err { display: grid; grid-template-columns: 1fr 420px; gap: 14px; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.step { background: #fff; border-radius: 5px; padding: 16px 18px; box-shadow: 0 4px 14px rgba(43, 37, 35, .1); border-top: 3px solid var(--amber); }
+.step .n { font-family: var(--disp); font-weight: 700; font-size: 26px; line-height: 1; color: var(--amber); }
+.step .t { font-family: var(--disp); font-weight: 700; font-size: 16px; letter-spacing: 1.5px; }
+.step .d { font-size: 12.5px; color: var(--mut); margin-top: 7px; line-height: 1.55; }
+.step pre { margin-top: 10px; background: var(--dark); color: #d8d3cc; border-radius: 3px; padding: 11px; font-size: 11px; line-height: 1.6; }
+.deflist { display: flex; flex-direction: column; margin-top: 12px; }
+.deflist .item { display: flex; gap: 12px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.deflist .term { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--amber-dk); min-width: 120px; }
+.deflist .def { font-size: 12.5px; color: #5a544d; flex: 1; line-height: 1.5; }
+.oplist { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
+.oplist .op { display: flex; gap: 11px; align-items: center; background: var(--soft); border-radius: 3px; padding: 9px 12px; }
+.oplist .dot { width: 7px; height: 7px; background: var(--amber); transform: rotate(45deg); flex: none; }
+.oplist .nm { font-family: var(--mono); font-size: 12px; min-width: 150px; }
+.oplist .ds { font-size: 11.5px; color: var(--mut); flex: 1; }
+.tl { display: flex; gap: 14px; }
+.tl .gut { display: flex; flex-direction: column; align-items: center; flex: none; }
+.tl .bullet { width: 11px; height: 11px; background: var(--amber); border-radius: 50%; margin-top: 4px; }
+.tl .line { width: 2px; flex: 1; background: #eee9e1; min-height: 22px; }
+.tl .t { font-size: 13px; font-weight: 600; }
+.tl .d { font-size: 11.5px; color: var(--mut); margin-top: 2px; line-height: 1.5; }
+.callout {
+  background: #fdf3e0; border: 1px solid rgba(242, 164, 28, .45); border-radius: 3px;
+  padding: 11px 13px; font-size: 11.5px; color: #7a5a12; line-height: 1.5; margin-top: 14px;
+}
+.dark-card { background: var(--ink); color: #fff; border-radius: 5px; padding: 20px 22px; box-shadow: 0 8px 26px rgba(43, 37, 35, .2); }
+.dark-card .h2 { color: var(--amber); }
+.kv { display: flex; justify-content: space-between; gap: 10px; font-family: var(--mono); font-size: 11.5px; border-bottom: 1px solid #3a3a3a; padding-bottom: 8px; }
+.kv span:first-child { color: var(--amber); }
+.kv span:last-child { color: var(--pale); }
+.tbl-head, .tbl-row { display: grid; gap: 12px; align-items: baseline; }
+.tbl-head {
+  padding-bottom: 7px; border-bottom: 1.5px solid var(--ink); margin-top: 12px;
+  font-family: var(--disp); font-weight: 700; font-size: 11px; letter-spacing: 2px; color: var(--mut2);
+}
+.tbl-row { padding: 9px 0; border-bottom: 1px solid var(--line); }
+.tbl-row .http { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--red); }
+.tbl-row .slug { font-family: var(--mono); font-size: 12px; }
+.tbl-row .when { font-size: 12.5px; color: #5a544d; }
+.tbl-row .where { font-family: var(--disp); font-weight: 600; font-size: 12px; letter-spacing: 1.5px; color: var(--mut2); }
+.rel { background: #fff; border-radius: 5px; padding: 16px 20px; box-shadow: 0 4px 14px rgba(43, 37, 35, .1); display: grid; grid-template-columns: 170px 1fr; gap: 20px; }
+.rel .date { font-family: var(--disp); font-weight: 700; font-size: 19px; letter-spacing: 1px; }
+.rel .tag {
+  display: inline-block; margin-top: 6px; font-family: var(--disp); font-weight: 700; font-size: 11px;
+  letter-spacing: 2px; padding: 3px 10px; border-radius: 10px; background: #efece6; color: var(--mut2);
+}
+.rel .tag.now { background: var(--amber); color: #fff; }
+.rel .items { display: flex; flex-direction: column; gap: 7px; }
+.rel .li { display: flex; gap: 10px; align-items: baseline; }
+.rel .li .dot { width: 7px; height: 7px; background: var(--amber); transform: rotate(45deg); flex: none; }
+.rel .li span { font-size: 12.5px; color: #5a544d; line-height: 1.55; flex: 1; }
+.pad { padding: 20px 22px; }
+.pad-sm { padding: 18px 20px; }
+
+/* ---------- telas menores ---------- */
+@media (max-width: 1180px) {
+  .panes, .g2, .g-err { grid-template-columns: 1fr; }
+  .g3 { grid-template-columns: 1fr; }
+  .routes { max-height: none; }
+  .content { overflow-y: auto; }
+}
+@media (max-width: 900px) {
+  body { overflow: auto; }
+  .app { height: auto; min-height: 100vh; }
+  .body { grid-template-columns: 1fr; padding: 2px 16px 24px; }
+  .head { padding: 14px 16px; }
+  .search { width: 100%; order: 5; }
+  .rail { max-height: 260px; }
+  .watermark { display: none; }
+  .rel { grid-template-columns: 1fr; gap: 8px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topline"></div>
+  <div class="watermark">API</div>
+
+  <header class="head">
+    <div class="brand">
+      <div class="mark"><i></i></div>
+      <b>UPGRADE PESSOAL</b>
+      <div class="badge">API local</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="search">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+      <input id="q" type="search" placeholder="Buscar rota, campo, erro…" autocomplete="off" />
+      <kbd>Ctrl K</kbd>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <button class="play-toggle" id="playToggle" title="Executa as chamadas contra este servidor">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6l2 2h8v12H4z"></path></svg>
+      PLAYGROUND
+    </button>
+  </header>
+
+  <div class="body">
+    <aside class="rail" id="rail"></aside>
+    <main class="content" id="content"></main>
+  </div>
+</div>
+
+<!-- confirmação de escrita do playground (fora do #content: render() não a apaga) -->
+<div class="backdrop" id="modal" hidden>
+  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalText">
+    <div class="bar-top"></div>
+    <div class="inner">
+      <div class="route">
+        <span class="m" id="modalMethod">POST</span>
+        <span class="path" id="modalPath">/api/…</span>
+      </div>
+      <div class="h1" id="modalTitle">EXECUTAR DE VERDADE?</div>
+      <p id="modalText"></p>
+      <div class="actions">
+        <button class="btn ghost" id="modalCancel">CANCELAR</button>
+        <button class="btn primary" id="modalOk">ENVIAR</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // Host mostrado nos exemplos. O playground usa a própria origem (esta página é
+  // servida pela API), então documentar localhost:4000 não atrapalha quem abre pelo IP da LAN.
+  var HOST = "http://localhost:4000";
+
+  // ─────────────────────────────── recursos ───────────────────────────────
+
+  var RES = [
+    { id: "character",   name: "CHARACTER",   desc: "Personagem, XP, atributos, streak",   schema: "Character" },
+    { id: "titles",      name: "TITLES",      desc: "Escada de títulos do briefing",       schema: "Title[]" },
+    { id: "weeks",       name: "WEEKS",       desc: "Arcos semanais e revisão de domingo", schema: "Week" },
+    { id: "missions",    name: "MISSIONS",    desc: "Quests do arco: XP e atributos",      schema: "Mission" },
+    { id: "attachments", name: "ATTACHMENTS", desc: "Provas anexadas às missões",          schema: "Attachment" },
+    { id: "debts",       name: "DEBTS",       desc: "Chefões, HP e ataques",               schema: "Debt" },
+    { id: "settings",    name: "SETTINGS",    desc: "Bolsa, metas de renda, avatar",       schema: "Record<string,string>" },
+    { id: "briefing",    name: "BRIEFING",    desc: "O documento que governa o jogo",      schema: "Briefing" },
+    { id: "sync",        name: "SYNC",        desc: "Pareamento e fila do celular",        schema: "PullResult · PushResult" },
+    { id: "app",         name: "APP",         desc: "Saúde do servidor e APK",             schema: "ApkManifest" }
+  ];
+
+  var ROWS = {
+    character: [
+      {
+        m: "GET", p: "/api/character", d: "Personagem completo, já com derivados", r: "Character", ok: "200 OK",
+        res: '{\n  "id": 1,\n  "name": "Rodrigo",\n  "xp": 340,\n  "level": 4,\n  "floor": 4,\n  "title": "Explorador Digital",\n  "nextTitle": { "level": 6, "name": "Voz do Setor" },\n  "xpInto": 40,\n  "xpNeeded": 100,\n  "xpPct": 40,\n  "stats": { "Domínio Técnico": 62, "Renda": 38,\n             "Saúde Financeira": 21 },\n  "power": 214,\n  "streak": 12\n}',
+        note: "Ler o personagem marca a visita do dia — é daqui que sai o streak. level = floor(xp / 100) + 1, e o andar da Torre é o próprio nível."
+      },
+      {
+        m: "PUT", p: "/api/character", d: "Calibragem do /briefing", r: "Character", ok: "200 OK",
+        body: { name: "Rodrigo", floor: 4, stats: { "Domínio Técnico": 62, "Renda": 38 } },
+        res: '{\n  "id": 1,\n  "name": "Rodrigo",\n  "xp": 300,\n  "level": 4,\n  "floor": 4,\n  "stats": { "Domínio Técnico": 62, "Renda": 38,\n             "Saúde Financeira": 50 },\n  "power": 150,\n  "streak": 12\n}',
+        note: "`floor` vira XP base (andar 50 → 4900 XP) e `stats` substitui o mapa inteiro. Saúde Financeira é recalculada pelo servidor logo depois. Atributo fora de 0–100 → 400."
+      }
+    ],
+
+    titles: [
+      {
+        m: "GET", p: "/api/titles", d: "Escada de títulos, do menor nível ao maior", r: "Title[]", ok: "200 OK",
+        res: '[\n  { "id": 1, "level": 1,  "name": "Aprendiz de Código" },\n  { "id": 2, "level": 4,  "name": "Explorador Digital" },\n  { "id": 3, "level": 6,  "name": "Voz do Setor" }\n]',
+        note: "Não existe escada padrão no repositório: ela nasce da entrevista do /briefing. Banco novo devolve lista vazia e o personagem fica sem título."
+      },
+      {
+        m: "PUT", p: "/api/titles", d: "Substitui a escada inteira", r: "Title[]", ok: "200 OK",
+        body: [{ level: 1, name: "Aprendiz de Código" }, { level: 4, name: "Explorador Digital" }],
+        res: '[\n  { "id": 4, "level": 1, "name": "Aprendiz de Código" },\n  { "id": 5, "level": 4, "name": "Explorador Digital" }\n]',
+        note: "Escrita destrutiva: apaga a escada atual e recria com ids novos. Cada id antigo deixa lápide para o celular não empilhar a escada velha com a nova."
+      }
+    ],
+
+    weeks: [
+      {
+        m: "GET", p: "/api/weeks", d: "Histórico de arcos (resumo)", r: "WeekSummary[]", ok: "200 OK",
+        res: '[\n  {\n    "id": 2, "floor": 4,\n    "theme": "Existir no Digital",\n    "startDate": "2026-07-26",\n    "status": "active",\n    "rating": null, "review": null, "closedAt": null,\n    "totalMissions": 5, "doneMissions": 2\n  }\n]',
+        note: "Ordenado do mais recente para o mais antigo. Sem missões aqui — só a contagem, que é o que a Torre precisa desenhar."
+      },
+      {
+        m: "GET", p: "/api/weeks/active", d: "Arco aberto, com missões e provas", r: "Week | null", ok: "200 OK",
+        res: '{\n  "id": 2, "floor": 4,\n  "theme": "Existir no Digital",\n  "startDate": "2026-07-26",\n  "status": "active",\n  "rating": null, "review": null, "closedAt": null,\n  "missions": [\n    { "id": 7, "order": 1, "kind": "main",\n      "title": "Publicar o primeiro post",\n      "xp": 30, "statGains": { "Presença Digital": 18 },\n      "status": "done", "rating": null,\n      "completedAt": "2026-07-27T13:02:11.000Z",\n      "attachments": [ { "id": 3, "url": "/api/attachments/3/download" } ] }\n  ]\n}',
+        note: "`null` quer dizer nenhum arco aberto — é o gatilho do painel para pedir /briefing (banco novo) ou /fechar-arco (semana pendente)."
+      },
+      {
+        m: "GET", p: "/api/weeks/:id", d: "Um arco específico, com missões", r: "Week", ok: "200 OK", tryPath: "/api/weeks/1",
+        res: '{\n  "id": 1, "floor": 3,\n  "theme": "Fundação Técnica",\n  "startDate": "2026-07-19",\n  "status": "closed",\n  "rating": 4,\n  "review": "Semana forte em marca pessoal.",\n  "closedAt": "2026-07-26T12:40:02.000Z",\n  "missions": [ … ]\n}',
+        note: "Arco inexistente → 404 not_found. É por aqui que o /fechar-arco relê uma semana antiga para comparar."
+      },
+      {
+        m: "POST", p: "/api/weeks", d: "Abre o arco da semana", r: "Week", ok: "201 Created",
+        body: {
+          theme: "Existir no Digital", startDate: "2026-07-26", floor: 4,
+          missions: [{ title: "Publicar o primeiro post", description: "Mínimo: 3 parágrafos", bonus: "Responder todos os comentários", xp: 30, statGains: { "Presença Digital": 18 }, kind: "main" }]
+        },
+        res: '{\n  "id": 2, "floor": 4,\n  "theme": "Existir no Digital",\n  "startDate": "2026-07-26",\n  "status": "active",\n  "missions": [\n    { "id": 7, "order": 1, "kind": "main",\n      "title": "Publicar o primeiro post", "xp": 30,\n      "status": "pending", "attachments": [] }\n  ]\n}',
+        note: "Só existe um arco aberto por vez: com outro ativo a resposta é 409 week_active e traz activeWeekId. Sem `floor`, o andar sai do nível atual do personagem. A ordem das missões é a ordem do array."
+      },
+      {
+        m: "POST", p: "/api/weeks/:id/close", d: "Ritual de domingo: estrelas → XP", r: "CloseResult", ok: "200 OK", tryPath: "/api/weeks/1/close",
+        body: { rating: 4, review: "Semana forte em marca pessoal.", missionRatings: [{ missionId: 7, stars: 5 }, { missionId: 8, stars: 3 }] },
+        res: '{\n  "weekId": 2,\n  "bonusXp": 95,\n  "leveledUp": true,\n  "newLevel": 5,\n  "character": {\n    "xp": 455, "level": 5, "floor": 5,\n    "title": "Voz do Setor", "streak": 12\n  }\n}',
+        note: "Estrelas viram XP bônus: 1★ 0 · 2★ 10 · 3★ 25 · 4★ 45 · 5★ 70. Fechar é definitivo — o arco vira história e nenhuma missão dele aceita mais escrita (409 week_closed). Rechamar → 400 already_closed."
+      }
+    ],
+
+    missions: [
+      {
+        m: "POST", p: "/api/missions", d: "Cria missão avulsa no arco", r: "Mission", ok: "201 Created",
+        body: { title: "Comentar em 3 posts de devs", description: "Comentário de valor, não emoji", xp: 10, statGains: { Networking: 6 }, kind: "side" },
+        res: '{\n  "id": 12, "order": 6, "kind": "side",\n  "title": "Comentar em 3 posts de devs",\n  "description": "Comentário de valor, não emoji",\n  "bonus": null, "xp": 10,\n  "statGains": { "Networking": 6 },\n  "status": "pending", "rating": null,\n  "completedAt": null, "attachments": []\n}',
+        note: "Sem `weekId` a missão cai no arco ativo. `kind: main` é linear (o painel destrava uma por vez); `side` é XP bônus opcional. Arco fechado → 409 week_closed."
+      },
+      {
+        m: "PATCH", p: "/api/missions/:id", d: "Edita título, XP, ganhos…", r: "Mission", ok: "200 OK", tryPath: "/api/missions/1",
+        body: { xp: 35, bonus: "Responder todos os comentários" },
+        res: '{\n  "id": 7, "order": 1, "kind": "main",\n  "title": "Publicar o primeiro post",\n  "bonus": "Responder todos os comentários",\n  "xp": 35, "status": "pending",\n  "attachments": []\n}',
+        note: "Patch parcial: só os campos enviados mudam. Editar XP de missão já concluída não reprocessa o XP creditado — desfaça e conclua de novo se precisar."
+      },
+      {
+        m: "DELETE", p: "/api/missions/:id", d: "Remove a missão do arco", r: "—", ok: "204 No Content", tryPath: "/api/missions/1",
+        res: "204 No Content\n\n(sem corpo — as provas somem por cascata\n e a exclusão vira lápide para o celular)",
+        note: "Não devolve XP: o que já foi creditado continua no personagem. Missão inexistente → 404 not_found."
+      },
+      {
+        m: "POST", p: "/api/missions/:id/complete", d: "Conclui e credita XP + atributos", r: "CompleteResult", ok: "200 OK", tryPath: "/api/missions/1/complete",
+        res: '{\n  "mission": { "id": 7, "status": "done",\n               "completedAt": "2026-07-28T14:02:11.000Z" },\n  "character": { "xp": 370, "level": 4, "power": 232 },\n  "leveledUp": false,\n  "newLevel": 4,\n  "gainedXp": 30,\n  "gains": { "Presença Digital": 18 }\n}',
+        note: "Idempotente de propósito: concluir de novo devolve gainedXp 0 e não credita nada — é a segunda linha de defesa contra o push repetido do celular. Atributos somam com teto de 100."
+      },
+      {
+        m: "POST", p: "/api/missions/:id/uncomplete", d: "Desfaz a conclusão", r: "{ mission, character }", ok: "200 OK", tryPath: "/api/missions/1/uncomplete",
+        res: '{\n  "mission": { "id": 7, "status": "pending",\n               "completedAt": null },\n  "character": { "xp": 340, "level": 4, "power": 214 }\n}',
+        note: "Reverte XP e atributos (com piso em 0). Missão que não estava concluída → 400 invalid_payload; missão de arco fechado → 409 week_closed."
+      }
+    ],
+
+    attachments: [
+      {
+        m: "POST", p: "/api/missions/:id/attachments", d: "Anexa provas (multipart)", r: "Attachment[]", ok: "201 Created", tryPath: "/api/missions/1/attachments",
+        multipart: ["files=@print-post.png", "files=@print-comentarios.png"], noPlay: true,
+        res: '[\n  {\n    "id": 3,\n    "originalName": "print-post.png",\n    "mimeType": "image/png",\n    "size": 184320,\n    "createdAt": "2026-07-28T14:02:11.000Z",\n    "url": "/api/attachments/3/download"\n  }\n]',
+        note: "Campo `files`, até 10 arquivos por requisição e 25 MB cada. Sem nenhum arquivo → 400. O binário vai para data/uploads/; o banco guarda só o registro."
+      },
+      {
+        m: "GET", p: "/api/attachments/:id/download", d: "Baixa/exibe a prova", r: "binário", ok: "200 OK", tryPath: "/api/attachments/1/download", noPlay: true,
+        res: "Content-Type: image/png\nContent-Disposition: inline; filename=\"print-post.png\"\n\n(bytes do arquivo)",
+        note: "É esta URL que vai dentro de cada Attachment. Registro no banco sem arquivo no disco → 410 (backup restaurado pela metade, por exemplo)."
+      },
+      {
+        m: "DELETE", p: "/api/attachments/:id", d: "Apaga a prova e o arquivo", r: "—", ok: "204 No Content", tryPath: "/api/attachments/1",
+        res: "204 No Content\n\n(sem corpo — o arquivo sai do disco\n e a exclusão vira lápide)",
+        note: "Apaga o arquivo antes do registro: prova sem arquivo é pior que prova nenhuma na revisão de domingo."
+      }
+    ],
+
+    debts: [
+      {
+        m: "GET", p: "/api/debts", d: "Chefões com HP e totais", r: "{ debts, totals }", ok: "200 OK",
+        res: '{\n  "debts": [\n    { "id": 1, "name": "Cartão de crédito",\n      "kind": "debt", "total": 2400, "paid": 900,\n      "remaining": 1500, "hpPct": 62.5,\n      "status": "active", "order": 1,\n      "payments": [ { "id": 4, "amount": 450,\n                      "date": "2026-07-28T12:00:00.000Z" } ] }\n  ],\n  "totals": { "total": 2400, "paid": 900, "remaining": 1500 }\n}',
+        note: "hpPct é o HP do chefão na tela (restante/total). `kind: item` é compra parcelada: quitada, vira item na bolsa em vez de sumir da história."
+      },
+      {
+        m: "POST", p: "/api/debts", d: "Cria chefão (dívida ou aquisição)", r: "Debt", ok: "201 Created",
+        body: { name: "Cartão de crédito", total: 2400, kind: "debt", note: "Fatura acumulada" },
+        res: '{\n  "id": 1, "name": "Cartão de crédito",\n  "note": "Fatura acumulada", "kind": "debt",\n  "total": 2400, "paid": 0, "remaining": 2400,\n  "hpPct": 100, "status": "active",\n  "order": 1, "payments": []\n}',
+        note: "O total vira o HP máximo. Criar chefão recalcula o atributo Saúde Financeira do personagem na hora."
+      },
+      {
+        m: "PATCH", p: "/api/debts/:id", d: "Renegocia total, nome ou nota", r: "Debt", ok: "200 OK", tryPath: "/api/debts/1",
+        body: { total: 2300, note: "Renegociado" },
+        res: '{\n  "id": 1, "name": "Cartão de crédito",\n  "note": "Renegociado", "kind": "debt",\n  "total": 2300, "paid": 900, "remaining": 1400,\n  "hpPct": 60.87, "status": "active"\n}',
+        note: "Mudar o total muda o HP máximo sem apagar o dano já causado — os pagamentos continuam lá."
+      },
+      {
+        m: "DELETE", p: "/api/debts/:id", d: "Remove o chefão e seus ataques", r: "—", ok: "204 No Content", tryPath: "/api/debts/1",
+        res: "204 No Content\n\n(sem corpo — pagamentos somem por cascata)",
+        note: "Some da história inteira: é para chefão lançado errado, não para chefão derrotado (esse fica, com status dead)."
+      },
+      {
+        m: "POST", p: "/api/debts/:id/pay", d: "Ataca: registra pagamento", r: "{ debt, defeated }", ok: "200 OK", tryPath: "/api/debts/1/pay",
+        body: { amount: 450, note: "Parcela de julho", clientUuid: "b1f4-…-9ac2" },
+        res: '{\n  "debt": {\n    "id": 1, "total": 2400, "paid": 1350,\n    "remaining": 1050, "hpPct": 43.75,\n    "status": "active"\n  },\n  "defeated": false\n}',
+        note: "`clientUuid` é opcional no painel e obrigatório no celular: com ele, o mesmo ataque reenviado não tira HP duas vezes. HP zerado marca o chefão como dead e devolve defeated: true — o painel para a tela para comemorar."
+      }
+    ],
+
+    settings: [
+      {
+        m: "GET", p: "/api/settings", d: "Todas as configs, como mapa", r: "Record<string,string>", ok: "200 OK",
+        res: '{\n  "pouch": "1200",\n  "pouch_goal": "5000",\n  "income_start": "3600",\n  "income_current": "3600",\n  "income_checkpoint": "5000",\n  "income_target": "7000",\n  "extras": "[{\\"id\\":\\"ex_19\\",\\"name\\":\\"Site do dentista\\",\\"value\\":720}]",\n  "avatar": "data:image/webp;base64,…"\n}',
+        note: "Valores são sempre string (JSON vai serializado dentro, como em `extras`). `sync_token` nunca aparece aqui: é o segredo do pareamento."
+      },
+      {
+        m: "PUT", p: "/api/settings/:key", d: "Grava uma config", r: "{ [key]: value }", ok: "200 OK", tryPath: "/api/settings/pouch",
+        body: { value: "1500" },
+        res: '{ "pouch": "1500" }',
+        note: "Cria a chave se não existir. `pouch` e `pouch_goal` recalculam Saúde Financeira. Tentar escrever `sync_token` → 403 forbidden_setting."
+      }
+    ],
+
+    briefing: [
+      {
+        m: "GET", p: "/api/briefing", d: "Briefing ativo (última versão)", r: "Briefing | null", ok: "200 OK",
+        res: '{\n  "id": 3,\n  "content": "# Briefing — Rodrigo\\n\\n## Quem é…",\n  "createdAt": "2026-07-26T11:20:00.000Z",\n  "versions": 3\n}',
+        note: "`null` = onboarding pendente; é o que faz o painel abrir a tela de entrevista. O conteúdo é markdown escrito pelo cowork."
+      },
+      {
+        m: "GET", p: "/api/briefing/history", d: "Metadados de todas as versões", r: "{ id, createdAt }[]", ok: "200 OK",
+        res: '[\n  { "id": 3, "createdAt": "2026-07-26T11:20:00.000Z" },\n  { "id": 2, "createdAt": "2026-07-19T10:02:00.000Z" },\n  { "id": 1, "createdAt": "2026-07-12T09:44:00.000Z" }\n]',
+        note: "Sem o conteúdo de propósito: briefing é texto longo e o painel só precisa da linha do tempo."
+      },
+      {
+        m: "GET", p: "/api/briefing/:id", d: "Uma versão específica", r: "Briefing", ok: "200 OK", tryPath: "/api/briefing/1",
+        res: '{\n  "id": 1,\n  "content": "# Briefing — Rodrigo\\n\\n…",\n  "createdAt": "2026-07-12T09:44:00.000Z",\n  "updatedAt": "2026-07-12T09:44:00.000Z"\n}',
+        note: "Versão inexistente → 404. Serve para comparar o que mudou entre duas revisões da vida real."
+      },
+      {
+        m: "POST", p: "/api/briefing", d: "Nova versão do briefing", r: "Briefing", ok: "201 Created",
+        body: { content: "# Briefing — Rodrigo\n\n## Quem é\nDev pleno..." },
+        res: '{\n  "id": 4,\n  "content": "# Briefing — Rodrigo\\n\\n## Quem é…",\n  "createdAt": "2026-08-02T10:00:00.000Z",\n  "updatedAt": "2026-08-02T10:00:00.000Z"\n}',
+        note: "Nunca sobrescreve: cada revisão é uma linha nova, e a mais recente passa a governar as semanas seguintes."
+      }
+    ],
+
+    sync: [
+      {
+        m: "GET", p: "/api/sync/info", d: "IPs da máquina e aparelhos pareados", r: "SyncInfo", ok: "200 OK",
+        res: '{\n  "lanIps": ["192.168.0.12"],\n  "port": 4000,\n  "tokenSet": true,\n  "hostLanIpFromEnv": null,\n  "devices": [\n    { "id": "9f2a-…", "name": "Pixel do Rodrigo",\n      "lastSeen": "2026-07-28T13:59:00.000Z",\n      "lastPulledAt": "2026-07-28T13:58:58.000Z" }\n  ]\n}',
+        note: "Sem token: quem já abriu o painel na máquina/rede local tem tudo de qualquer jeito. É o que alimenta a tela do QR."
+      },
+      {
+        m: "POST", p: "/api/sync/pair/new", d: "Gera token novo e despareia todos", r: "{ token, hosts, port, protocol }", ok: "200 OK",
+        res: '{\n  "token": "3f9c…64 hex",\n  "hosts": ["192.168.0.12"],\n  "port": 4000,\n  "protocol": 1\n}',
+        note: "É o \"trocar a fechadura\": todo aparelho pareado com o token anterior perde o acesso. O painel transforma esta resposta no QR que o app lê."
+      },
+      {
+        m: "GET", p: "/api/sync/ping", d: "Servidor vivo + versão do APK", r: "{ ok, protocol, serverTime, latestApp }", ok: "200 OK", auth: true,
+        res: '{\n  "ok": true,\n  "protocol": 1,\n  "serverTime": "2026-07-28T14:02:11.000Z",\n  "latestApp": {\n    "version": "1.2.0", "versionCode": 5,\n    "url": "/api/app/download"\n  }\n}',
+        note: "O app usa como teste de rede e como aviso de atualização — sem loja, é o servidor que conta que existe versão nova."
+      },
+      {
+        m: "POST", p: "/api/sync/hello", d: "Registra/renomeia o aparelho", r: "{ deviceId, lastPulledAt, protocol }", ok: "200 OK", auth: true,
+        body: { deviceId: "9f2a4c8e-…", name: "Pixel do Rodrigo" },
+        res: '{\n  "deviceId": "9f2a4c8e-…",\n  "lastPulledAt": null,\n  "protocol": 1\n}',
+        note: "Upsert pelo deviceId. `lastPulledAt` null significa aparelho novo: o próximo pull vem completo, sem `since`."
+      },
+      {
+        m: "GET", p: "/api/sync/pull", d: "Snapshot incremental PC → celular", r: "PullResult", ok: "200 OK", auth: true,
+        query: { since: "2026-07-28T13:58:58.000Z" },
+        res: '{\n  "cursor": "2026-07-28T14:02:11.000Z",\n  "hasMore": false,\n  "changes": {\n    "character": { "id": 1, "xp": 370, "stats": { … } },\n    "titles": [ … ], "weeks": [ … ], "missions": [ … ],\n    "attachments": [ … ], "debts": [ … ], "payments": [ … ],\n    "settings": [ … ], "visits": ["2026-07-28"],\n    "briefing": { "id": 3, "content": "…" }\n  },\n  "deleted": { "mission": ["12"], "attachment": ["3"] }\n}',
+        note: "Sem `since` volta tudo. O cursor recua 2s de propósito: reentregar linha é inofensivo (o app aplica por upsert), perder linha não. `deleted` são as lápides — cascatas não entram, porque o banco do app repete as mesmas FKs."
+      },
+      {
+        m: "POST", p: "/api/sync/push", d: "Fila de operações celular → PC", r: "PushResult", ok: "200 OK", auth: true,
+        body: { deviceId: "9f2a4c8e-…", ops: [{ opId: "op_7c1e9b", type: "mission.complete", base: { updatedAt: "2026-07-28T13:40:00.000Z", status: "pending" }, payload: { missionId: 7 } }] },
+        res: '{\n  "cursor": "2026-07-28T14:02:11.000Z",\n  "results": [\n    { "opId": "op_7c1e9b", "status": "applied",\n      "data": { "missionId": 7, "gainedXp": 30,\n                "leveledUp": false, "newLevel": 4 } },\n    { "opId": "op_44ab10", "status": "conflict",\n      "reason": "status_changed", "entity": "mission",\n      "entityId": "8",\n      "mine":   { "label": "… — concluída (celular)" },\n      "theirs": { "label": "… — pendente no PC, 28/07 13:44" } }\n  ]\n}',
+        note: "Máximo de 200 operações, aplicadas em ordem. Cada opId aplica no máximo uma vez (tabela SyncOp) — reenviar não credita XP de novo. Conflito não é memorizado e não é resolvido pelo servidor: volta com os dois lados para o jogador escolher, e `force: true` repete a operação já decidida."
+      },
+      {
+        m: "POST", p: "/api/sync/attachments", d: "Sobe prova do celular (multipart)", r: "{ opId, status, data }", ok: "201 Created", auth: true, noPlay: true,
+        multipart: ["file=@prova.jpg", "opId=op_9f21", "missionId=7", "clientUuid=b1f4-…"],
+        res: '{\n  "opId": "op_9f21",\n  "status": "applied",\n  "data": {\n    "attachment": { "id": 9, "url": "/api/attachments/9/download" },\n    "duplicate": false\n  }\n}',
+        note: "O binário não cabe no JSON do push, então sobe aqui — com o mesmo contrato de idempotência. Reenvio devolve replay: true e o resultado original; `clientUuid` repetido devolve duplicate: true e descarta o arquivo novo."
+      }
+    ],
+
+    app: [
+      {
+        m: "GET", p: "/api/health", d: "Servidor de pé", r: "{ ok }", ok: "200 OK",
+        res: '{ "ok": true }',
+        note: "É o que scripts\\start.ps1 fica consultando depois de subir o container: o painel só abre quando esta rota responde."
+      },
+      {
+        m: "GET", p: "/api/app/latest", d: "Versão do APK publicado", r: "ApkManifest", ok: "200 OK",
+        res: '{\n  "publicado": true,\n  "version": "1.2.0",\n  "versionCode": 5,\n  "builtAt": "2026-07-26T22:10:00.000Z",\n  "file": "upgrade-pessoal-1.2.0.apk",\n  "sizeBytes": 62914560,\n  "sha256": "9f2a…",\n  "url": "/api/app/download"\n}',
+        note: "Sem APK em data/apk/ devolve { publicado: false } com a dica de rodar scripts\\build-apk.ps1. Sem token de propósito: a primeira instalação acontece antes de existir pareamento."
+      },
+      {
+        m: "GET", p: "/api/app/download", d: "Baixa o APK", r: "binário", ok: "200 OK", noPlay: true,
+        res: "Content-Type: application/vnd.android.package-archive\nContent-Disposition: attachment; filename=\"upgrade-pessoal-1.2.0.apk\"\n\n(bytes do APK)",
+        note: "É o alvo do QR de instalação. Sem APK publicado → 404 not_found."
+      }
+    ]
+  };
+
+  // ─────────────────────────────── conteúdo dos guias ───────────────────────────────
+
+  var ERRORS = [
+    ["400", "invalid_payload", "Corpo reprovado pelo Zod — a resposta traz fieldErrors", "GLOBAL"],
+    ["404", "not_found", "Personagem, arco, missão, chefão ou prova inexistente", "GLOBAL"],
+    ["500", "internal", "Exceção não tratada — o detalhe fica no log do servidor", "GLOBAL"],
+    ["409", "week_active", "Já existe arco aberto; a resposta traz activeWeekId", "WEEKS"],
+    ["400", "already_closed", "Arco já fechado — o domingo não acontece duas vezes", "WEEKS"],
+    ["409", "week_closed", "Missão de arco fechado: não conclui, não edita, não cria", "MISSIONS"],
+    ["400", "invalid_payload", "uncomplete numa missão que não estava concluída", "MISSIONS"],
+    ["400", "—", "POST de prova sem nenhum arquivo no multipart", "ATTACHMENTS"],
+    ["410", "—", "Registro no banco, arquivo ausente em data/uploads/", "ATTACHMENTS"],
+    ["403", "forbidden_setting", "Tentativa de escrever sync_token por /api/settings", "SETTINGS"],
+    ["401", "unauthorized", "Rota /api/sync/* sem cabeçalho Authorization", "SYNC"],
+    ["401", "not_paired", "Nenhum token gerado ainda — o painel precisa mostrar o QR", "SYNC"],
+    ["401", "bad_token", "Token não confere: o pareamento foi rotacionado", "SYNC"],
+    ["429", "rate_limited", "Mais de 120 req/min no /api/sync (Retry-After: 60)", "SYNC"],
+    ["404", "not_found", "GET /api/app/download sem APK publicado", "APP"]
+  ];
+
+  var PUSH_RESULTS = [
+    ["applied", "Operação aplicada (ou reaplicada: replay: true, sem efeito novo)"],
+    ["rejected · invalid_payload", "Faltou campo obrigatório da operação (missionId, amount, clientUuid…)"],
+    ["rejected · forbidden_op", "Tipo fora da lista, ou config que o app não pode escrever"],
+    ["rejected · not_found", "A entidade sumiu do PC entre o offline e o envio"],
+    ["rejected · week_closed", "O arco foi fechado com o cowork enquanto o celular estava fora"],
+    ["conflict · status_changed", "PC e celular discordam do estado da missão"],
+    ["conflict · value_changed", "A config mudou no PC depois da foto que o celular tinha"],
+    ["conflict · possible_duplicate", "Ataque igual no mesmo chefão em 24 h, ou chefão de mesmo nome"]
+  ];
+
+  var OP_TYPES = [
+    ["mission.complete", "Concluir missão (XP e atributos entram no personagem)"],
+    ["mission.uncomplete", "Desfazer conclusão"],
+    ["payment.create", "Atacar chefão"],
+    ["debt.create", "Criar chefão"],
+    ["extra.add / extra.remove", "Lançar ou apagar freela"],
+    ["setting.put", "Só income_current, pouch, pouch_goal e avatar"],
+    ["visit.mark", "Check-in do dia (streak)"],
+    ["attachment.delete", "Apagar prova"]
+  ];
+
+  var CONCEPTS = [
+    ["arco (week)", "A semana temática, aberta no domingo. Acontece num andar da Torre."],
+    ["missão", "Quest do arco. `main` é linear — o painel destrava uma por vez; `side` é XP bônus."],
+    ["prova", "Anexo da missão (print, PDF). É o lastro da nota de domingo."],
+    ["chefão (debt)", "Dívida ou compra parcelada. O valor total é o HP; pagar é atacar."],
+    ["atributo", "Seis stats de 0 a 100 no radar. Saúde Financeira é calculada, o resto vem das missões."],
+    ["briefing", "Documento markdown versionado que governa todas as semanas seguintes."]
+  ];
+
+  var RELEASES = [
+    {
+      date: "2026-07-28", tag: "ATUAL", items: [
+        "Documentação: README, docs/SETUP.md, docs/SYNC.md e esta referência da API.",
+        "Licença MIT — o repositório passa a ser forkável de verdade."
+      ]
+    },
+    {
+      date: "2026-07-26", tag: "SYNC", items: [
+        "Recurso SYNC completo: pareamento por QR, pull incremental com cursor e push idempotente por opId.",
+        "Conflitos devolvidos com os dois lados (mine/theirs) em vez de vencedor silencioso.",
+        "Recurso APP: manifesto e download do APK servidos pelo próprio host."
+      ]
+    },
+    {
+      date: "2026-07-25", tag: "V1", items: [
+        "Primeira versão: CHARACTER, TITLES, WEEKS, MISSIONS, ATTACHMENTS, DEBTS, SETTINGS e BRIEFING.",
+        "Regras do jogo centralizadas em src/domain.ts — a API calcula, o painel só exibe."
+      ]
+    }
+  ];
+
+  var DOC_SECTIONS = {
+    "INÍCIO": [
+      ["Rodar em 3 minutos", "Subir o servidor e fazer a primeira chamada"],
+      ["Modelo mental", "Arco, missão, prova, chefão, atributo"],
+      ["Quem escreve o quê", "Painel, cowork e celular têm poderes diferentes"]
+    ],
+    "ACESSO": [
+      ["Rede local", "Sem conta, sem nuvem, sem chave de API"],
+      ["Token de sync", "Bearer só em /api/sync/*"],
+      ["Ciclo do pareamento", "Geração, uso, rotação"]
+    ],
+    "ERROS": [
+      ["Envelope", "error, code e o que mais couber"],
+      ["Rate limit", "120 req/min no /api/sync"],
+      ["Catálogo", ERRORS.length + " situações mapeadas"],
+      ["Resultados do push", "applied, rejected, conflict"]
+    ],
+    "CHANGELOG": RELEASES.map(function (r) { return [r.date, r.items.length + " mudanças"]; })
+  };
+
+  var VIEWS = ["INÍCIO", "REFERÊNCIA", "ACESSO", "ERROS", "CHANGELOG"];
+
+  // ─────────────────────────────── estado ───────────────────────────────
+
+  var state = { view: "REFERÊNCIA", res: "character", row: 0, lang: "cURL", play: false, q: "", live: null, token: "" };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function totalRoutes() {
+    return RES.reduce(function (a, r) { return a + ROWS[r.id].length; }, 0);
+  }
+
+  function methodsOf(resId) {
+    var seen = [];
+    ROWS[resId].forEach(function (r) { if (seen.indexOf(r.m) < 0) seen.push(r.m); });
+    return seen;
+  }
+
+  // Busca: casa método, rota, descrição, retorno, nota e o corpo de exemplo.
+  function matches(row, q) {
+    if (!q) return true;
+    var hay = [row.m, row.p, row.d, row.r, row.note, row.body ? JSON.stringify(row.body) : "", row.res].join(" ").toLowerCase();
+    return hay.indexOf(q) >= 0;
+  }
+
+  function visibleRows(resId) {
+    var q = state.q.trim().toLowerCase();
+    return ROWS[resId].filter(function (r) { return matches(r, q); });
+  }
+
+  function currentRow() {
+    var rows = visibleRows(state.res);
+    return rows[Math.min(state.row, rows.length - 1)] || null;
+  }
+
+  function tryPathOf(row) {
+    return row.tryPath || row.p;
+  }
+
+  // ─────────────────────────────── snippets ───────────────────────────────
+
+  function queryString(row) {
+    if (!row.query) return "";
+    return "?" + Object.keys(row.query).map(function (k) {
+      return k + "=" + encodeURIComponent(row.query[k]);
+    }).join("&");
+  }
+
+  function snippet(row, lang) {
+    var url = HOST + tryPathOf(row) + queryString(row);
+    var body = row.body ? JSON.stringify(row.body, null, 2) : null;
+    var s;
+
+    if (lang === "cURL") {
+      s = "curl -X " + row.m + ' "' + url + '"';
+      if (row.auth) s += ' \\\n  -H "Authorization: Bearer $UP_SYNC_TOKEN"';
+      if (row.multipart) s += row.multipart.map(function (f) { return ' \\\n  -F "' + f + '"'; }).join("");
+      else if (body) s += ' \\\n  -H "Content-Type: application/json" \\\n  -d \'' + body.replace(/\n/g, "\n     ") + "'";
+      return s;
+    }
+
+    if (lang === "JS") {
+      s = 'const res = await fetch(\n  "' + url + '",\n  {\n    method: "' + row.m + '"';
+      var headers = [];
+      if (row.auth) headers.push("Authorization: `Bearer ${token}`");
+      if (body && !row.multipart) headers.push('"Content-Type": "application/json"');
+      if (headers.length) s += ",\n    headers: {\n      " + headers.join(",\n      ") + "\n    }";
+      if (row.multipart) s += ",\n    body: form // FormData";
+      else if (body) s += ",\n    body: JSON.stringify(" + body.replace(/\n/g, "\n      ") + ")";
+      s += "\n  }\n);\nconst data = await res.json();";
+      return s;
+    }
+
+    var py = body ? body.replace(/\btrue\b/g, "True").replace(/\bfalse\b/g, "False").replace(/\bnull\b/g, "None") : null;
+    s = 'import requests\n\nres = requests.' + row.m.toLowerCase() + '(\n  "' + url + '"';
+    if (row.auth) s += ',\n  headers={"Authorization": f"Bearer {token}"}';
+    if (row.multipart) {
+      var field = row.multipart[0].split("=")[0];
+      var fileName = row.multipart[0].split("@")[1] || "prova.jpg";
+      s += ',\n  files={"' + field + '": open("' + fileName + '", "rb")}';
+      var extras = row.multipart.slice(1).filter(function (f) { return f.indexOf("@") < 0; });
+      if (extras.length) {
+        s += ',\n  data={' + extras.map(function (f) {
+          var kv = f.split("=");
+          return '"' + kv[0] + '": "' + kv[1] + '"';
+        }).join(", ") + "}";
+      }
+    }
+    else if (py) s += ",\n  json=" + py.replace(/\n/g, "\n  ");
+    s += "\n)\ndata = res.json()";
+    return s;
+  }
+
+  // ─────────────────────────────── render: cabeçalho e rail ───────────────────────────────
+
+  function renderNav() {
+    $("nav").innerHTML = VIEWS.map(function (v) {
+      return '<button data-view="' + v + '" class="' + (state.view === v ? "sel" : "") + '">' + v + "</button>";
+    }).join("");
+    $("playToggle").className = "play-toggle" + (state.play ? " on" : "");
+  }
+
+  function renderRail() {
+    var html = "";
+
+    if (state.view === "REFERÊNCIA") {
+      html += '<div class="rail-title">RECURSOS · ' + totalRoutes() + " ROTAS</div>";
+      var any = false;
+      RES.forEach(function (r) {
+        var rows = visibleRows(r.id);
+        if (!rows.length) return;
+        any = true;
+        var sel = state.res === r.id;
+        html += '<button class="res-card' + (sel ? " sel" : "") + '" data-res="' + r.id + '">' +
+          '<div class="top"><div class="name">' + r.name + '</div>' +
+          '<div class="count">' + rows.length + (rows.length === 1 ? " rota" : " rotas") + "</div></div>" +
+          '<div class="desc">' + esc(r.desc) + "</div>" +
+          '<div class="meths">' + methodsOf(r.id).map(function (m) {
+            return '<span class="m sm ' + m + '">' + m + "</span>";
+          }).join("") + "</div></button>";
+      });
+      if (!any) html += '<div class="rail-note">Nada casa com <b>' + esc(state.q) + "</b>.</div>";
+    } else {
+      html += '<div class="rail-title">NESTA PÁGINA</div>';
+      (DOC_SECTIONS[state.view] || []).forEach(function (s) {
+        html += '<div class="doc-card"><div class="t">' + esc(s[0]) + '</div><div class="s">' + esc(s[1]) + "</div></div>";
+      });
+    }
+
+    html += '<div style="flex:1;min-height:10px"></div>' +
+      '<div class="rail-note"><b>RATE LIMIT</b><br>120 req/min por aparelho, só em <span class="k">/api/sync/*</span>. O resto da API não tem limite: é a sua máquina.</div>';
+
+    $("rail").innerHTML = html;
+  }
+
+  // ─────────────────────────────── render: referência ───────────────────────────────
+
+  function renderReference() {
+    var res = RES.filter(function (r) { return r.id === state.res; })[0];
+    var rows = visibleRows(state.res);
+    var row = currentRow();
+
+    var head =
+      '<div class="panel routes">' +
+        '<div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap">' +
+          '<div><div class="h1" style="font-size:26px">' + res.name + '</div>' +
+          '<div style="font-size:12.5px;color:var(--mut);margin-top:2px">' + esc(res.desc) + "</div></div>" +
+          '<div class="spacer"></div>' +
+          '<div class="mono" style="font-size:11.5px;color:var(--faint)">esquema: ' + esc(res.schema) + "</div>" +
+        "</div>" +
+        '<div class="head-row"><div>MÉTODO</div><div>ROTA</div><div>RETORNO</div></div>';
+
+    if (!rows.length) {
+      head += '<div class="empty">Nenhuma rota deste recurso casa com a busca.</div>';
+    } else {
+      rows.forEach(function (r, i) {
+        head += '<button class="row' + (row === r ? " sel" : "") + '" data-row="' + i + '">' +
+          '<div><span class="m ' + r.m + '">' + r.m + "</span></div>" +
+          '<div><div class="p">' + esc(r.p) + (r.auth ? '<span class="lock">token</span>' : "") + "</div>" +
+          '<div class="d">' + esc(r.d) + "</div></div>" +
+          '<div class="r">' + esc(r.r) + "</div></button>";
+      });
+    }
+    head += "</div>";
+
+    if (!row) return '<div class="view">' + head + "</div>";
+
+    var lang = state.lang;
+    var chips = [];
+    if (row.body) {
+      chips = Array.isArray(row.body) ? ["array de { level, name }"] : Object.keys(row.body);
+    }
+    if (row.query) Object.keys(row.query).forEach(function (k) { chips.push("?" + k); });
+    if (row.multipart) chips.push("multipart/form-data");
+    if (row.auth) chips.push("Authorization: Bearer");
+
+    var reqPane =
+      '<div class="pane req">' +
+        '<div class="bar">' +
+          '<span class="tag">REQUISIÇÃO</span>' +
+          '<span class="route">' + row.m + " " + esc(row.p) + "</span>" +
+          '<span class="spacer"></span>' +
+          (state.play ? "" :
+            '<div class="langs">' + ["cURL", "JS", "PY"].map(function (l) {
+              return '<button data-lang="' + l + '" class="' + (lang === l ? "sel" : "") + '">' + l + "</button>";
+            }).join("") + "</div>") +
+        "</div>" +
+        '<div class="chips">' + chips.map(function (c) { return '<span class="chip">' + esc(c) + "</span>"; }).join("") + "</div>" +
+        (state.play ? playgroundForm(row) : "<pre>" + esc(snippet(row, lang)) + "</pre>") +
+      "</div>";
+
+    var live = state.live;
+    var resPane =
+      '<div class="pane res">' +
+        '<div class="bar">' +
+          '<span class="tag">RESPOSTA</span>' +
+          '<span class="status-ok' + (live && !live.ok ? " bad" : "") + '">' + esc(live ? live.status : row.ok) + "</span>" +
+          (live ? '<span class="route">resposta real deste servidor</span>' : "") +
+          '<span class="spacer"></span>' +
+          (live ? "" : errCodesFor(state.res)) +
+        "</div>" +
+        "<pre>" + esc(live ? live.body : row.res) + "</pre>" +
+        '<div class="note">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="#f2a41c"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"></path></svg>' +
+          "<div>" + esc(row.note) + "</div>" +
+        "</div>" +
+      "</div>";
+
+    return '<div class="view">' + head + '<div class="panes">' + reqPane + resPane + "</div></div>";
+  }
+
+  function errCodesFor(resId) {
+    var map = { weeks: ["409 week_active", "400 already_closed"], missions: ["409 week_closed", "404 not_found"],
+      attachments: ["400", "410"], settings: ["403 forbidden_setting"], debts: ["404 not_found"],
+      sync: ["401 bad_token", "429 rate_limited"], app: ["404 not_found"], briefing: ["404 not_found"],
+      character: ["400 invalid_payload"], titles: ["400 invalid_payload"] };
+    return (map[resId] || []).map(function (c) { return '<span class="errcode">' + c + "</span>"; }).join(" ");
+  }
+
+  function playgroundForm(row) {
+    if (row.noPlay) {
+      return '<div class="pg"><div class="warn">Esta rota envia ou devolve arquivo — o playground não cobre multipart nem download. Use o exemplo em cURL (desligue o playground) ou o próprio painel.</div></div>';
+    }
+    var body = row.body ? JSON.stringify(row.body, null, 2) : "";
+    return '<div class="pg">' +
+      '<label>URL</label>' +
+      '<input id="pgPath" value="' + esc(tryPathOf(row) + queryString(row)) + '" spellcheck="false" />' +
+      (row.auth ? '<label>TOKEN DE SYNC</label><input id="pgToken" value="' + esc(state.token) + '" placeholder="cole o token de POST /api/sync/pair/new" spellcheck="false" />' : "") +
+      (body ? '<label>CORPO (JSON)</label><textarea id="pgBody" rows="8" spellcheck="false">' + esc(body) + "</textarea>" : "") +
+      '<button class="send" id="pgSend">' + row.m + " ▸ ENVIAR</button>" +
+      '<div class="warn">O playground fala com <b>este</b> servidor e escreve no banco de verdade — ' +
+      (row.m === "GET" ? "esta é uma leitura, sem efeito colateral." : "confirme antes de gravar.") + "</div>" +
+      "</div>";
+  }
+
+  // ─────────────────────────────── render: guias ───────────────────────────────
+
+  function renderStart() {
+    var steps = [
+      ["1", "SUBA O SERVIDOR", "Docker ou npm — os dois servem API e painel na porta 4000.",
+        "docker compose up -d\n# ou: npm run dev\n\ncurl http://localhost:4000/api/health"],
+      ["2", "LEIA O PERSONAGEM", "Nível, andar, título, streak e os seis atributos do radar.",
+        "curl http://localhost:4000/api/character"],
+      ["3", "CONCLUA UMA MISSÃO", "A resposta já traz o XP creditado, os atributos e se houve level-up.",
+        "curl -X POST \\\n  http://localhost:4000/api/missions/7/complete"]
+    ];
+
+    return '<div class="view scroll">' +
+      '<div class="hero">' +
+        '<div class="eyebrow">API LOCAL, SEM NUVEM NO MEIO</div>' +
+        '<div class="h1">A API DA TORRE</div>' +
+        "<p>Toda a mecânica do jogo é REST em cima de SQLite: o jogador abre o arco da semana, conclui missões, anexa provas, ataca chefões e fecha o andar no domingo. " +
+        totalRoutes() + " rotas em " + RES.length + " recursos, JSON em tudo. O painel só exibe — quem calcula XP, nível e atributos é a API.</p>" +
+        '<div class="facts">' +
+          '<div><div class="lbl">BASE URL</div><div class="val amber">http://localhost:4000/api</div></div>' +
+          '<div><div class="lbl">AUTENTICAÇÃO</div><div class="val">nenhuma (só /api/sync)</div></div>' +
+          '<div><div class="lbl">FORMATO</div><div class="val">application/json · UTF-8</div></div>' +
+          '<div><div class="lbl">BANCO</div><div class="val">SQLite em data/</div></div>' +
+        "</div>" +
+      "</div>" +
+
+      '<div class="g3">' + steps.map(function (s) {
+        return '<div class="step">' +
+          '<div style="display:flex;align-items:center;gap:10px"><div class="n">' + s[0] + '</div><div class="t">' + s[1] + "</div></div>" +
+          '<div class="d">' + esc(s[2]) + "</div><pre>" + esc(s[3]) + "</pre></div>";
+      }).join("") + "</div>" +
+
+      '<div class="g2">' +
+        '<div class="panel flat pad-sm"><div class="h2">MODELO MENTAL</div><div class="deflist">' +
+          CONCEPTS.map(function (c) {
+            return '<div class="item"><span class="term">' + esc(c[0]) + '</span><span class="def">' + esc(c[1]) + "</span></div>";
+          }).join("") + "</div></div>" +
+        '<div class="panel flat pad-sm"><div class="h2">QUEM ESCREVE O QUÊ</div>' +
+          '<div class="lead" style="font-size:12.5px">O painel e o cowork mandam em tudo pela API HTTP. O celular só pode as ' + OP_TYPES.length + " operações abaixo, e cada uma vira uma linha na fila do <span class=\"k\">/api/sync/push</span>:</div>" +
+          '<div class="oplist">' + OP_TYPES.map(function (o) {
+            return '<div class="op"><span class="dot"></span><span class="nm">' + esc(o[0]) + '</span><span class="ds">' + esc(o[1]) + "</span></div>";
+          }).join("") + "</div>" +
+          '<div class="callout">Fechar arco e dar estrelas não estão na lista de propósito: avaliação exige as provas na mão e conversa com o cowork, então o servidor recusa vindo do app.</div>' +
+        "</div>" +
+      "</div>" +
+      "</div>";
+  }
+
+  function renderAuth() {
+    var open = [
+      ["Painel (todo o resto da API)", "Sem token. Quem alcança a porta 4000 já está na sua máquina ou na sua rede."],
+      ["GET /api/sync/info", "Sem token: é a tela que mostra IPs e aparelhos pareados."],
+      ["POST /api/sync/pair/new", "Sem token: é justamente daqui que o segredo sai."],
+      ["GET /api/app/latest · download", "Sem token: a primeira instalação acontece antes de existir pareamento."],
+      ["Resto de /api/sync/*", "Bearer obrigatório — ping, hello, pull, push e upload de prova."]
+    ];
+    var life = [
+      ["Geração", "POST /api/sync/pair/new cria 32 bytes aleatórios em hex, guarda na Setting sync_token e apaga todos os aparelhos pareados."],
+      ["Transporte", "O painel desenha o token, os IPs da LAN e a porta num QR. O app lê e guarda; o segredo nunca passa por servidor de terceiro."],
+      ["Uso", "Authorization: Bearer <token> em toda chamada de /api/sync/*, mais X-Device-Id para identificar o aparelho no rate limit e no cursor do pull."],
+      ["Verificação", "Comparação por digest SHA-256 com timingSafeEqual — o tempo de resposta não entrega nem o valor nem o tamanho."],
+      ["Rotação", "Gerar de novo é trocar a fechadura: os aparelhos antigos passam a receber 401 bad_token e precisam ler o QR outra vez."]
+    ];
+
+    return '<div class="view scroll">' +
+      '<div class="panel pad">' +
+        '<div class="eyebrow">SEGURANÇA</div>' +
+        '<div class="h1">ACESSO</div>' +
+        '<div class="lead">Este servidor é de uma máquina só. Não existe conta, login, chave de API nem multiusuário: as rotas do painel respondem a quem alcança a porta ' +
+        '<span class="k">4000</span>. A única superfície protegida é o <b>sync com o celular</b> — porque essa sim atravessa o Wi-Fi — e ela usa um token Bearer nascido de um QR na tela.</div>' +
+        '<div class="g2" style="margin-top:18px">' +
+          '<pre style="background:var(--dark);color:#d8d3cc;border-radius:3px;padding:14px">POST /api/sync/pair/new\n\n{\n  "token": "3f9c…",   // 64 hex\n  "hosts": ["192.168.0.12"],\n  "port": 4000,\n  "protocol": 1\n}</pre>' +
+          '<pre style="background:var(--soft);border:1px solid #eee9e1;color:#5a544d;border-radius:3px;padding:14px">GET /api/sync/pull?since=…\nAuthorization: Bearer 3f9c…\nX-Device-Id: 9f2a4c8e-…\n\n200 OK\n{ "cursor": "…", "changes": { … } }</pre>' +
+        "</div>" +
+      "</div>" +
+      '<div class="g2">' +
+        '<div class="panel flat pad-sm"><div class="h2">ABERTO vs PROTEGIDO</div><div class="deflist">' +
+          open.map(function (o) {
+            return '<div class="item"><span class="term" style="min-width:200px">' + esc(o[0]) + '</span><span class="def">' + esc(o[1]) + "</span></div>";
+          }).join("") + "</div></div>" +
+        '<div class="panel flat pad-sm"><div class="h2">CICLO DO PAREAMENTO</div><div style="margin-top:14px">' +
+          life.map(function (t, i) {
+            return '<div class="tl"><div class="gut"><div class="bullet"></div>' + (i < life.length - 1 ? '<div class="line"></div>' : "") + "</div>" +
+              '<div style="padding-bottom:14px"><div class="t">' + esc(t[0]) + '</div><div class="d">' + esc(t[1]) + "</div></div></div>";
+          }).join("") +
+          '<div class="callout">O token nunca vai em query string, nunca sai no <span class="k">GET /api/settings</span> e nunca entra em log. Quem tem o token fala com o banco inteiro.</div>' +
+        "</div></div>" +
+      "</div>" +
+      "</div>";
+  }
+
+  function renderErrors() {
+    return '<div class="view scroll">' +
+      '<div class="g-err">' +
+        '<div class="panel pad">' +
+          '<div class="eyebrow">CONTRATO</div><div class="h1">ERROS &amp; LIMITES</div>' +
+          '<div class="lead">Regra de negócio quebrada devolve sempre o mesmo envelope: <span class="k">code</span> estável para o cliente tratar e ' +
+          '<span class="k">error</span> em português, pronto para mostrar ao jogador. Erro de validação (Zod) é a exceção: vem com o relatório de campos.</div>' +
+          '<pre style="margin-top:14px;background:var(--dark);color:#d8d3cc;border-radius:3px;padding:14px">' +
+          esc('// regra de negócio\n{\n  "error": "este arco já foi fechado — fale com o cowork",\n  "code": "week_closed"\n}\n\n// validação de corpo (Zod)\n{\n  "error": {\n    "formErrors": [],\n    "fieldErrors": { "total": ["Number must be greater than 0"] }\n  }\n}') + "</pre>" +
+        "</div>" +
+        '<div class="dark-card">' +
+          '<div class="h2">RATE LIMIT</div>' +
+          '<div style="display:flex;flex-direction:column;gap:9px;margin-top:14px">' +
+            '<div class="kv"><span>janela</span><span>60 s</span></div>' +
+            '<div class="kv"><span>limite</span><span>120 requisições</span></div>' +
+            '<div class="kv"><span>chave</span><span>X-Device-Id ou IP</span></div>' +
+            '<div class="kv"><span>alcance</span><span>só /api/sync/*</span></div>' +
+          "</div>" +
+          '<div style="font-size:12px;color:var(--pale);margin-top:14px;line-height:1.6">Ao estourar: <b style="color:#fff">429 rate_limited</b> com <span class="mono">Retry-After: 60</span>. ' +
+          "O limite é alto de propósito — a primeira sincronização de um celular cheio de provas faz um upload por arquivo. É cinto de segurança contra app em loop de retry, não defesa contra ataque.</div>" +
+        "</div>" +
+      "</div>" +
+
+      '<div class="panel flat pad">' +
+        '<div class="h2">CATÁLOGO</div>' +
+        '<div class="tbl-head" style="grid-template-columns:64px 190px 1fr 140px"><div>HTTP</div><div>CODE</div><div>QUANDO ACONTECE</div><div>RECURSO</div></div>' +
+        ERRORS.map(function (e) {
+          return '<div class="tbl-row" style="grid-template-columns:64px 190px 1fr 140px">' +
+            '<div class="http">' + e[0] + '</div><div class="slug">' + esc(e[1]) + '</div>' +
+            '<div class="when">' + esc(e[2]) + '</div><div class="where">' + e[3] + "</div></div>";
+        }).join("") +
+      "</div>" +
+
+      '<div class="panel flat pad">' +
+        '<div class="h2">RESULTADOS DO PUSH</div>' +
+        '<div class="lead" style="font-size:12.5px">O <span class="k">POST /api/sync/push</span> devolve <b>200</b> mesmo quando uma operação não passa: cada item da fila tem seu próprio destino, e uma recusa não pode derrubar as outras.</div>' +
+        '<div class="tbl-head" style="grid-template-columns:280px 1fr"><div>STATUS · REASON</div><div>SIGNIFICADO</div></div>' +
+        PUSH_RESULTS.map(function (p) {
+          return '<div class="tbl-row" style="grid-template-columns:280px 1fr"><div class="slug">' + esc(p[0]) + '</div><div class="when">' + esc(p[1]) + "</div></div>";
+        }).join("") +
+        '<div class="callout">Conflito não é memorizado: o estado do PC pode mudar até o app tentar de novo. Resolvido pelo jogador, a operação volta com <span class="k">force: true</span>.</div>' +
+      "</div>" +
+      "</div>";
+  }
+
+  function renderChangelog() {
+    return '<div class="view scroll">' +
+      '<div class="panel pad">' +
+        '<div class="eyebrow">EVOLUÇÃO DA API</div><div class="h1">CHANGELOG</div>' +
+        '<div class="lead">A API é local e não tem versionamento formal: sobe junto com o repositório. As datas abaixo seguem os commits — se você forkou numa delas, é isso que a sua cópia tem.</div>' +
+      "</div>" +
+      RELEASES.map(function (r) {
+        return '<div class="rel"><div><div class="date">' + r.date + '</div><div class="tag' + (r.tag === "ATUAL" ? " now" : "") + '">' + r.tag + "</div></div>" +
+          '<div class="items">' + r.items.map(function (i) {
+            return '<div class="li"><span class="dot"></span><span>' + esc(i) + "</span></div>";
+          }).join("") + "</div></div>";
+      }).join("") +
+      "</div>";
+  }
+
+  // ─────────────────────────────── render ───────────────────────────────
+
+  function render() {
+    renderNav();
+    renderRail();
+    var html =
+      state.view === "REFERÊNCIA" ? renderReference() :
+      state.view === "INÍCIO" ? renderStart() :
+      state.view === "ACESSO" ? renderAuth() :
+      state.view === "ERROS" ? renderErrors() : renderChangelog();
+    $("content").innerHTML = html;
+  }
+
+  // ─────────────────────────────── playground ───────────────────────────────
+
+  // Confirmação de escrita com o visual da página. O confirm() nativo destoa do resto,
+  // não diz qual rota vai rodar e some atrás da janela em alguns navegadores.
+  var modalOnOk = null;
+
+  function askConfirm(row, path, onOk) {
+    var danger = row.m === "DELETE";
+    var method = $("modalMethod");
+    var ok = $("modalOk");
+
+    method.className = "m " + row.m;
+    method.textContent = row.m;
+    $("modalPath").textContent = path;
+    $("modalTitle").textContent = danger ? "APAGAR DE VERDADE?" : "GRAVAR DE VERDADE?";
+    $("modalText").textContent = danger
+      ? "Isto apaga o registro no banco desta instância, e prova apagada sai do disco junto. Não existe desfazer."
+      : "Isto escreve no banco desta instância, exatamente como o painel faria. Confira a URL e o corpo antes de enviar.";
+    ok.className = "btn primary" + (danger ? " danger" : "");
+    ok.textContent = danger ? "APAGAR" : "ENVIAR";
+
+    modalOnOk = onOk;
+    $("modal").hidden = false;
+    ok.focus();
+  }
+
+  function closeConfirm(run) {
+    $("modal").hidden = true;
+    var fn = modalOnOk;
+    modalOnOk = null;
+    if (run && fn) fn();
+  }
+
+  function send(row) {
+    var pathEl = $("pgPath");
+    var path = pathEl.value.trim();
+    if (!path) return;
+
+    var opts = { method: row.m, headers: {} };
+    var tokenEl = $("pgToken");
+    if (tokenEl) {
+      state.token = tokenEl.value.trim();
+      if (state.token) opts.headers["Authorization"] = "Bearer " + state.token;
+    }
+    var bodyEl = $("pgBody");
+    if (bodyEl && row.m !== "GET") {
+      try {
+        JSON.parse(bodyEl.value); // valida antes de sair da página
+      } catch (e) {
+        state.live = { ok: false, status: "JSON inválido", body: String(e) };
+        render();
+        return;
+      }
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = bodyEl.value;
+    }
+
+    if (row.m === "GET") return fire(path, opts);
+    askConfirm(row, path, function () { fire(path, opts); });
+  }
+
+  function fire(path, opts) {
+    var btn = $("pgSend");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "ENVIANDO…";
+    }
+
+    fetch(path, opts).then(function (r) {
+      return r.text().then(function (text) {
+        var pretty = text;
+        try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (e) { /* 204 ou binário */ }
+        state.live = {
+          ok: r.ok,
+          status: r.status + " " + r.statusText,
+          body: pretty || "(sem corpo)"
+        };
+        render();
+      });
+    }).catch(function (e) {
+      state.live = { ok: false, status: "falha de rede", body: String(e) + "\n\nO servidor está de pé? " + HOST + "/api/health" };
+      render();
+    });
+  }
+
+  // ─────────────────────────────── eventos ───────────────────────────────
+
+  document.addEventListener("click", function (ev) {
+    var el = ev.target.closest ? ev.target.closest("[data-view],[data-res],[data-row],[data-lang],#pgSend,#playToggle") : null;
+    if (!el) return;
+
+    if (el.id === "playToggle") {
+      state.play = !state.play;
+      state.live = null;
+      if (state.play && state.view !== "REFERÊNCIA") state.view = "REFERÊNCIA";
+      return render();
+    }
+    if (el.id === "pgSend") {
+      var row = currentRow();
+      if (row) send(row);
+      return;
+    }
+    if (el.dataset.view) {
+      state.view = el.dataset.view;
+      state.live = null;
+      return render();
+    }
+    if (el.dataset.res) {
+      state.res = el.dataset.res;
+      state.row = 0;
+      state.live = null;
+      return render();
+    }
+    if (el.dataset.row) {
+      state.row = Number(el.dataset.row);
+      state.live = null;
+      return render();
+    }
+    if (el.dataset.lang) {
+      state.lang = el.dataset.lang;
+      return render();
+    }
+  });
+
+  $("modalOk").addEventListener("click", function () { closeConfirm(true); });
+  $("modalCancel").addEventListener("click", function () { closeConfirm(false); });
+  // clique no fundo escuro (não no cartão) cancela
+  $("modal").addEventListener("click", function (ev) {
+    if (ev.target === $("modal")) closeConfirm(false);
+  });
+
+  $("q").addEventListener("input", function (ev) {
+    state.q = ev.target.value;
+    state.live = null;
+    if (state.q && state.view !== "REFERÊNCIA") state.view = "REFERÊNCIA";
+    // se o recurso selecionado não tem mais nada, pula para o primeiro que tiver
+    if (!visibleRows(state.res).length) {
+      var first = RES.filter(function (r) { return visibleRows(r.id).length; })[0];
+      if (first) { state.res = first.id; state.row = 0; }
+    }
+    render();
+  });
+
+  document.addEventListener("keydown", function (ev) {
+    // com a confirmação aberta ela é dona do teclado
+    if (!$("modal").hidden) {
+      if (ev.key === "Escape") { ev.preventDefault(); closeConfirm(false); }
+      if (ev.key === "Enter") { ev.preventDefault(); closeConfirm(true); }
+      return;
+    }
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "k") {
+      ev.preventDefault();
+      $("q").focus();
+      $("q").select();
+    }
+    if (ev.key === "Escape" && document.activeElement === $("q")) {
+      $("q").value = "";
+      state.q = "";
+      render();
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

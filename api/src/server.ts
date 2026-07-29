@@ -34,10 +34,18 @@ export function createApp() {
   app.use("/api/app", appRouter);
   app.use("/api", attachmentsRouter); // /api/missions/:id/attachments e /api/attachments/:id/*
 
+  // Referência da API (página estática, sem build). Fica antes do catch-all do painel,
+  // senão o SPA responderia /docs com o index.html dele.
+  // `../docs` resolve tanto de src/ (dev, via tsx) quanto de dist/ (produção).
+  app.use("/docs", express.static(path.resolve(__dirname, "../docs")));
+
   // Em produção, serve o frontend buildado (api/public)
   const publicDir = path.resolve(__dirname, "../public");
   if (fs.existsSync(publicDir)) {
     app.use(express.static(publicDir));
+    // O navegador pede /favicon.ico sozinho, sem olhar o <link> da página; sem esta linha
+    // o catch-all abaixo devolveria o HTML do painel como se fosse um ícone.
+    app.get("/favicon.ico", (_req, res) => res.sendFile(path.join(publicDir, "torre.ico")));
     app.get("*", (_req, res) => res.sendFile(path.join(publicDir, "index.html")));
   }
 
