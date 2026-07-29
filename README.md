@@ -139,6 +139,17 @@ O APK também sai do próprio servidor: `scripts\build-apk.ps1` builda, publica 
 Detalhes de arquitetura, rotas da API e desenvolvimento: [docs/SETUP.md](docs/SETUP.md).
 Protocolo de sincronização: [docs/SYNC.md](docs/SYNC.md).
 
+## Documentação da API
+
+Com o servidor no ar, a referência completa fica em **<http://localhost:4000/docs>**:
+os 38 endpoints agrupados por recurso, exemplos em cURL/JavaScript/Python gerados a
+partir do corpo real de cada rota, catálogo de erros, contrato do sync e um
+**playground** que dispara as chamadas contra a sua própria instância.
+
+É uma página estática (`api/docs/index.html`) servida pela própria API — sem build,
+sem dependência externa, no ar sempre que o container estiver de pé. Quem forka o
+projeto tem o mapa da API antes de abrir o primeiro arquivo.
+
 ## Rodar em 4 linhas
 
 ```bash

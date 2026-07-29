@@ -118,16 +118,23 @@ Em produção (Docker) a API serve o build do front (`api/public`). Após mudar 
 
 ```
 api/          Express + Prisma (rotas em src/routes, regras do jogo em src/domain.ts)
+api/docs/     Referência da API servida em /docs (HTML estático, sem build)
 web/          React + Vite (painel de tela única; componentes em src/components)
 mobile/       App Android (Expo + NativeWind + SQLite local) — ver docs/PLANO-MOBILE.md
 .claude/
   skills/     /briefing e /fechar-arco — o "cérebro" do mestre de jogo
 scripts/      PowerShell de conveniência (start, stop, rebuild, backup, atalho)
-assets/       Ícone da Torre (svg + ico)
+assets/       Ícone da Torre (svg + ico) — publicDir do Vite: vai para a raiz do site
+              (favicon do painel e da /docs) e serve de ícone do atalho de desktop
 data/         SEU jogo (git-ignored)
 ```
 
 ### API (resumo das rotas)
+
+> **Referência completa e navegável: <http://localhost:4000/docs>** — com o servidor no ar.
+> Todas as rotas, corpos de exemplo, respostas reais, catálogo de erros e um playground
+> que executa as chamadas contra a sua própria instância. A página é estática
+> (`api/docs/index.html`), servida pela API e sem build.
 
 ```
 GET  /api/character          personagem + derivados (nível, andar, título, streak)
