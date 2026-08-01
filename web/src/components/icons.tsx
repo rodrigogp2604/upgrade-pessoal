@@ -32,6 +32,15 @@ export const ClipIcon = ({ size = 13 }: IconProps) => (
   </svg>
 );
 
+// prova quebrada: registro no banco sem arquivo em data/uploads
+export const BrokenClipIcon = ({ size = 13 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 9v4" />
+    <path d="M12 17h.01" />
+    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+  </svg>
+);
+
 export const StarIcon = ({ size = 12 }: IconProps) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="#f2a41c" stroke="none">
     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />

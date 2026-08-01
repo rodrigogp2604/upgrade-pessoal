@@ -172,6 +172,24 @@ servidor, a miniatura é herdada pela linha nova.
 Idempotência em duas camadas: `opId` (tabela `SyncOp`) e `clientUuid` único na tabela
 `Attachment`. Prova recusada por tamanho (413) sai da fila em vez de tentar para sempre.
 
+**Linha e arquivo nascem e morrem juntos.** Os dois caminhos de upload — o do painel
+(`POST /api/missions/:id/attachments`) e o do celular (`POST /api/sync/attachments`) —
+passam pelo mesmo `addAttachment`, que só cria a linha depois de conferir que o arquivo
+está em `data/uploads/` com o tamanho anunciado. Não estando, o arquivo é descartado e a
+resposta é `500 upload_failed` — o celular mantém a prova na fila e tenta de novo. Na
+exclusão a ordem é a inversa: a linha sai primeiro, o arquivo depois.
+
+O motivo é o custo assimétrico: arquivo sem linha é lixo invisível, mas **linha sem arquivo
+é prova quebrada** — conta no painel, responde 410 no download e a revisão de domingo a lê
+como "sem prova", rebaixando a missão a 3★. Quando algo tem que sobrar, que sobre o lixo.
+
+Provas quebradas por perda de arquivo fora da API (backup restaurado pela metade, limpeza
+manual) não são evitáveis dentro do fluxo, então ficam visíveis: `missing: true` em cada
+`Attachment`, aviso vermelho no painel e `GET /api/attachments/orphans` com o relatório —
+inclusive `backupPath`, que aponta a cópia em `backups/` quando os bytes ainda existem.
+`POST /api/attachments/orphans/cleanup` apaga as linhas quebradas com lápide (o celular
+esquece no pull seguinte) e nunca toca nos arquivos órfãos.
+
 ## Testes
 
 ```bash

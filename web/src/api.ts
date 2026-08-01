@@ -7,7 +7,14 @@ export interface Character {
 export interface Briefing { id: number; content: string; createdAt: string; versions: number; }
 export interface Attachment {
   id: number; originalName: string; mimeType: string; size: number; createdAt: string; url: string;
+  /** registrada no banco mas sem arquivo em data/uploads: o download responde 410 */
+  missing: boolean;
 }
+export interface OrphanRow {
+  id: number; missionId: number; missionTitle: string; originalName: string;
+  filename: string; createdAt: string; backupPath: string | null;
+}
+export interface OrphanReport { rows: OrphanRow[]; files: string[]; }
 export interface Mission {
   id: number; order: number; title: string; description: string | null; bonus: string | null;
   xp: number; statGains: Record<string, number>; status: string; rating: number | null;
@@ -87,6 +94,10 @@ export const api = {
     return req<Attachment[]>(`/api/missions/${missionId}/attachments`, { method: "POST", body: fd });
   },
   deleteProof: (id: number) => req<void>(`/api/attachments/${id}`, { method: "DELETE" }),
+
+  getOrphans: () => req<OrphanReport>("/api/attachments/orphans"),
+  cleanupOrphans: () =>
+    req<{ removed: OrphanRow[]; files: string[] }>("/api/attachments/orphans/cleanup", { method: "POST" }),
 
   closeWeek: (id: number, data: { rating: number; review?: string; missionRatings: { missionId: number; stars: number }[] }) =>
     req<any>(`/api/weeks/${id}/close`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(data) }),

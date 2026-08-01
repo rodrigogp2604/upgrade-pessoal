@@ -24,6 +24,11 @@ Para cada missão do arco:
   `http://localhost:4000/api/attachments/<id>/download` (salve num diretório
   temporário e abra — imagens você consegue LER; olhe de verdade).
 - Converse com o usuário sobre o que não tiver prova: o que foi feito, o que travou.
+- **Anexo com `missing: true` é prova QUEBRADA, não prova ausente** (o download dá 410: o
+  registro existe, o arquivo saiu de `data/uploads`). Não penalize por isso — o arquivo
+  pode estar num backup. Rode `GET /api/attachments/orphans`: se vier `backupPath`, copie o
+  arquivo de volta para `data/uploads` e avalie a prova de verdade. Só na falta de cópia
+  pergunte ao usuário o que era, e julgue pelo relato.
 
 **Estrelas (1-5) por missão, com justificativa curta e franca:**
 - 5★ entrega completa e caprichada, com prova — acima do combinado

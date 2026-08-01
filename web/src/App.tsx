@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, type Briefing, type Character, type DebtsResponse, type Week, type WeekSummary } from "./api";
+import { api, type Briefing, type Character, type DebtsResponse, type OrphanReport, type Week, type WeekSummary } from "./api";
 import { TopBar } from "./components/TopBar";
 import { MissionsColumn } from "./components/MissionsColumn";
 import { CharacterCenter } from "./components/CharacterCenter";
@@ -37,6 +37,9 @@ export default function App() {
   const [menu, setMenu] = useState<MenuId>(null);
   const [bossSel, setBossSel] = useState<number | null>(null);
   const [floorSel, setFloorSel] = useState<number | null>(null);
+  // Provas quebradas da Torre inteira — carregadas só quando o painel da Torre abre, para
+  // a varredura de disco não entrar no polling de 5 s.
+  const [orphans, setOrphans] = useState<OrphanReport | null>(null);
 
   const [toast, setToast] = useState<string | null>(null);
   const [xpFloat, setXpFloat] = useState<number | null>(null);
@@ -131,6 +134,18 @@ export default function App() {
       flash("Prova anexada — vale na avaliação de domingo");
     });
 
+  const handleCleanupOrphans = () =>
+    withBusy(async () => {
+      const { removed } = await api.cleanupOrphans();
+      setOrphans(await api.getOrphans());
+      setWeek(await api.getActiveWeek());
+      flash(
+        removed.length === 1
+          ? "1 registro de prova quebrada removido"
+          : `${removed.length} registros de prova quebrada removidos`
+      );
+    });
+
   const handleAttack = (id: number, amount: number) =>
     withBusy(async () => {
       const r = await api.payDebt(id, amount);
@@ -201,6 +216,7 @@ export default function App() {
       }
       if (next === "torre") {
         setFloorSel((s) => s ?? week?.id ?? weeks[0]?.id ?? null);
+        api.getOrphans().then(setOrphans).catch(() => {}); // manutenção não derruba o painel
       }
       return next;
     });
@@ -237,7 +253,14 @@ export default function App() {
             <div className="cascade-scroll">
               {menu === "status" && <StatusPanel c={character} />}
               {menu === "torre" && (
-                <TowerPanel weeks={weeks} selectedId={floorSel} onSelect={setFloorSel} />
+                <TowerPanel
+                  weeks={weeks}
+                  selectedId={floorSel}
+                  orphans={orphans}
+                  busy={busy}
+                  onSelect={setFloorSel}
+                  onCleanupOrphans={handleCleanupOrphans}
+                />
               )}
               {menu === "boss" && debts && (
                 <BossPanel

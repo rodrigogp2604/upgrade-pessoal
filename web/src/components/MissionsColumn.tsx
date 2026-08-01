@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { Mission, Week } from "../api";
-import { CheckIcon, ClipIcon, LockIcon, ZapIcon } from "./icons";
+import { BrokenClipIcon, CheckIcon, ClipIcon, LockIcon, ZapIcon } from "./icons";
 
 interface Props {
   week: Week | null;
@@ -65,14 +65,27 @@ export function MissionsColumn({ week, busy, onComplete, onUpload }: Props) {
   };
 
   const renderMission = (m: Mission) => {
+    // Prova quebrada não pode ser contada como prova: na revisão de domingo ela vale zero
+    // (o arquivo não abre), e contar junto esconde justamente o que precisa ser resolvido.
+    const quebradas = m.attachments.filter((a) => a.missing).length;
+    const inteiras = m.attachments.length - quebradas;
+
     if (m.status === "done") {
       return (
         <div className="m-done" key={m.id}>
           <div className="m-check"><CheckIcon /></div>
           <div className="m-done-title">{m.title}</div>
-          {m.attachments.length > 0 && (
+          {inteiras > 0 && (
             <span style={{ color: "var(--pale)", display: "flex", alignItems: "center", gap: 3, fontSize: 11.5 }}>
-              <ClipIcon size={11} />{m.attachments.length}
+              <ClipIcon size={11} />{inteiras}
+            </span>
+          )}
+          {quebradas > 0 && (
+            <span
+              title={`${quebradas} ${quebradas === 1 ? "prova quebrada" : "provas quebradas"}: o registro existe, o arquivo não está em data/uploads`}
+              style={{ color: "var(--red)", display: "flex", alignItems: "center", gap: 3, fontSize: 11.5 }}
+            >
+              <BrokenClipIcon size={11} />{quebradas}
             </span>
           )}
           <div className="m-xp-done">+{m.xp} XP</div>
@@ -96,8 +109,17 @@ export function MissionsColumn({ week, busy, onComplete, onUpload }: Props) {
               <CheckIcon size={15} />CONCLUIR
             </button>
             <button className="btn-proof" disabled={busy} onClick={() => pickProof(m.id)}>
-              <ClipIcon />{m.attachments.length > 0 ? `Provas (${m.attachments.length})` : "Anexar prova"}
+              <ClipIcon />{inteiras > 0 ? `Provas (${inteiras})` : "Anexar prova"}
             </button>
+            {quebradas > 0 && (
+              <span
+                title="O registro está no banco mas o arquivo não está em data/uploads. Veja A Torre → provas quebradas."
+                style={{ color: "var(--red)", display: "flex", alignItems: "center", gap: 4, fontSize: 11.5 }}
+              >
+                <BrokenClipIcon size={12} />
+                {quebradas} {quebradas === 1 ? "prova quebrada" : "provas quebradas"}
+              </span>
+            )}
           </div>
         </div>
       );
