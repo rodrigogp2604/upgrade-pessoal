@@ -20,10 +20,15 @@ export type AppErrorCode =
   | "week_active"
   | "forbidden_setting"
   | "already_closed"
-  | "unauthorized";
+  | "unauthorized"
+  | "upload_failed";
 
 export function isAppError(e: unknown): e is AppError {
   return e instanceof AppError;
 }
 
 export const notFound = (message: string) => new AppError("not_found", message, 404);
+
+// Upload que não terminou no disco. 500 e não 400 porque a resposta certa é TENTAR DE NOVO
+// (o celular mantém a prova na fila) — e não "corrija o payload".
+export const uploadFailed = (message: string) => new AppError("upload_failed", message, 500);

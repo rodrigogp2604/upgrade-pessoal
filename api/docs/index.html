@@ -530,18 +530,28 @@ pre { margin: 0; font-family: var(--mono); font-size: 11.5px; line-height: 1.75;
       {
         m: "POST", p: "/api/missions/:id/attachments", d: "Anexa provas (multipart)", r: "Attachment[]", ok: "201 Created", tryPath: "/api/missions/1/attachments",
         multipart: ["files=@print-post.png", "files=@print-comentarios.png"], noPlay: true,
-        res: '[\n  {\n    "id": 3,\n    "originalName": "print-post.png",\n    "mimeType": "image/png",\n    "size": 184320,\n    "createdAt": "2026-07-28T14:02:11.000Z",\n    "url": "/api/attachments/3/download"\n  }\n]',
-        note: "Campo `files`, até 10 arquivos por requisição e 25 MB cada. Sem nenhum arquivo → 400. O binário vai para data/uploads/; o banco guarda só o registro."
+        res: '[\n  {\n    "id": 3,\n    "originalName": "print-post.png",\n    "mimeType": "image/png",\n    "size": 184320,\n    "createdAt": "2026-07-28T14:02:11.000Z",\n    "url": "/api/attachments/3/download",\n    "missing": false\n  }\n]',
+        note: "Campo `files`, até 10 arquivos por requisição e 25 MB cada. Sem nenhum arquivo → 400. A linha no banco só nasce depois de o arquivo estar no disco com o tamanho anunciado; upload que não chegou inteiro → 500 upload_failed e nada é gravado."
       },
       {
         m: "GET", p: "/api/attachments/:id/download", d: "Baixa/exibe a prova", r: "binário", ok: "200 OK", tryPath: "/api/attachments/1/download", noPlay: true,
         res: "Content-Type: image/png\nContent-Disposition: inline; filename=\"print-post.png\"\n\n(bytes do arquivo)",
-        note: "É esta URL que vai dentro de cada Attachment. Registro no banco sem arquivo no disco → 410 (backup restaurado pela metade, por exemplo)."
+        note: "É esta URL que vai dentro de cada Attachment. Registro no banco sem arquivo no disco → 410 file_missing (backup restaurado pela metade, por exemplo). O campo `missing` do Attachment já avisa antes de tentar baixar."
+      },
+      {
+        m: "GET", p: "/api/attachments/orphans", d: "Provas quebradas e arquivos sem dono", r: "{ rows, files }", ok: "200 OK", tryPath: "/api/attachments/orphans",
+        res: '{\n  "rows": [\n    { "id": 1, "missionId": 4,\n      "missionTitle": "Fazer o perfil do GitHub existir",\n      "originalName": "print-github.png",\n      "filename": "df4c028a-….png",\n      "createdAt": "2026-07-26T15:20:04.000Z",\n      "backupPath": "…/backups/pre-sync-…/uploads/df4c028a-….png" }\n  ],\n  "files": []\n}',
+        note: "`rows` = linha sem arquivo (prova quebrada). `files` = arquivo sem linha (lixo, ou prova de um banco restaurado pela metade). `backupPath` diz quando os bytes ainda existem em backups/ e a prova pode ser restaurada em vez de esquecida."
+      },
+      {
+        m: "POST", p: "/api/attachments/orphans/cleanup", d: "Esquece as provas quebradas", r: "{ removed, files }", ok: "200 OK", tryPath: "/api/attachments/orphans/cleanup",
+        res: '{\n  "removed": [\n    { "id": 1, "originalName": "print-github.png",\n      "backupPath": null }\n  ],\n  "files": []\n}',
+        note: "Apaga as linhas sem arquivo (com lápide, para o celular esquecer também). NÃO apaga arquivos órfãos: sem linha que os aponte eles podem ser prova recuperável, e apagar é irreversível. Olhe o relatório antes — `backupPath` pode valer uma restauração."
       },
       {
         m: "DELETE", p: "/api/attachments/:id", d: "Apaga a prova e o arquivo", r: "—", ok: "204 No Content", tryPath: "/api/attachments/1",
-        res: "204 No Content\n\n(sem corpo — o arquivo sai do disco\n e a exclusão vira lápide)",
-        note: "Apaga o arquivo antes do registro: prova sem arquivo é pior que prova nenhuma na revisão de domingo."
+        res: "204 No Content\n\n(sem corpo — a linha sai do banco,\n vira lápide, e então o arquivo sai do disco)",
+        note: "Apaga o registro ANTES do arquivo: se a segunda metade falhar, sobra arquivo órfão (invisível e listado em /orphans) em vez de prova quebrada — que é pior, porque conta no painel e some na revisão de domingo."
       }
     ],
 
@@ -985,7 +995,7 @@ pre { margin: 0; font-family: var(--mono); font-size: 11.5px; line-height: 1.75;
 
   function errCodesFor(resId) {
     var map = { weeks: ["409 week_active", "400 already_closed"], missions: ["409 week_closed", "404 not_found"],
-      attachments: ["400", "410"], settings: ["403 forbidden_setting"], debts: ["404 not_found"],
+      attachments: ["400", "410 file_missing", "500 upload_failed"], settings: ["403 forbidden_setting"], debts: ["404 not_found"],
       sync: ["401 bad_token", "429 rate_limited"], app: ["404 not_found"], briefing: ["404 not_found"],
       character: ["400 invalid_payload"], titles: ["400 invalid_payload"] };
     return (map[resId] || []).map(function (c) { return '<span class="errcode">' + c + "</span>"; }).join(" ");

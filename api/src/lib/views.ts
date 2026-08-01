@@ -1,4 +1,5 @@
 import { levelFromXp, floorFromXp, titleFor, nextTitle, progressWithinLevel } from "../domain";
+import { uploadExists } from "./uploads";
 
 type CharacterRow = {
   id: number;
@@ -32,12 +33,16 @@ export function characterView(c: CharacterRow, streak: number, ladder: TitleRow[
 
 type AttachmentRow = {
   id: number;
+  filename: string;
   originalName: string;
   mimeType: string;
   size: number;
   createdAt: Date;
 };
 
+// `missing` custa um existsSync por prova. Cabe: são dezenas de arquivos numa pasta local,
+// e a alternativa é o painel contar como prova algo que responde 410 — e a revisão de
+// domingo confundir prova quebrada com prova que nunca foi anexada.
 export function attachmentView(a: AttachmentRow) {
   return {
     id: a.id,
@@ -46,6 +51,7 @@ export function attachmentView(a: AttachmentRow) {
     size: a.size,
     createdAt: a.createdAt,
     url: `/api/attachments/${a.id}/download`,
+    missing: !uploadExists(a.filename),
   };
 }
 

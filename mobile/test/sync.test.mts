@@ -17,6 +17,9 @@ import { resolver } from "@/db/conflicts";
 const conflitos0 = (linhas: { opId: string }[]) => linhas[0]?.opId ?? "";
 
 const BASE = "http://127.0.0.1:4123";
+// Onde o servidor de teste grava as provas. Precisa ser conhecido aqui porque parte do que
+// se testa é justamente o desencontro entre a linha no banco e os bytes no disco.
+const UPLOADS = process.env.TEST_UPLOAD_DIR ?? "C:/Users/rodri/Projetos/upgrade-pessoal/data/uploads";
 const requireFromApi = createRequire("C:/Users/rodri/Projetos/upgrade-pessoal/api/package.json");
 const { PrismaClient } = requireFromApi("@prisma/client");
 const prisma = new PrismaClient();
@@ -194,6 +197,145 @@ ok("sincronizar de novo não duplica a prova", (await prisma.attachment.count({ 
 const { arquivoParaApagar } = await removerProvaLocal(db, provaNoServidor.id);
 r = await sincronizar(db);
 ok("remover prova no celular apaga no PC também", (await prisma.attachment.findUnique({ where: { id: provaNoServidor.id } })) === null, JSON.stringify(arquivoParaApagar));
+
+secao("prova quebrada: linha no banco sem arquivo no disco");
+const fsNode = await import("node:fs");
+const pathNode = await import("node:path");
+
+// Sobe uma prova de verdade e depois arranca o arquivo por baixo dela — é assim que a
+// prova quebrada aparece no mundo real (arquivo perdido fora do fluxo da API).
+const uuidQuebrada = "prova-quebrada-" + Date.now();
+const arquivoQuebrado = new File(`${(await import("node:os")).tmpdir()}/prova-quebrada.txt`);
+arquivoQuebrado.write("prova que vai perder o arquivo");
+await anexarProvaLocal(db, missaoDaProva.id, {
+  clientUuid: uuidQuebrada,
+  uri: arquivoQuebrado.uri,
+  thumbUri: null,
+  originalName: "prova-quebrada.txt",
+  mimeType: "text/plain",
+  size: arquivoQuebrado.size,
+});
+await sincronizar(db);
+
+const quebrada = await prisma.attachment.findUnique({ where: { clientUuid: uuidQuebrada } });
+ok("prova subiu antes de quebrar", Boolean(quebrada), String(quebrada?.originalName));
+fsNode.rmSync(pathNode.join(UPLOADS, quebrada.filename));
+
+const arcoComQuebrada = await (await fetch(`${BASE}/api/weeks/active`)).json();
+const missaoComQuebrada = arcoComQuebrada.missions.find((m: { id: number }) => m.id === missaoDaProva.id);
+const anexoNaView = missaoComQuebrada.attachments.find((a: { id: number }) => a.id === quebrada.id);
+ok("a API marca a prova como missing", anexoNaView?.missing === true, JSON.stringify(anexoNaView));
+ok(
+  "prova inteira não é marcada como missing",
+  missaoComQuebrada.attachments.every((a: { id: number; missing: boolean }) => a.id === quebrada.id || !a.missing),
+  JSON.stringify(missaoComQuebrada.attachments)
+);
+
+const respDownload = await fetch(`${BASE}/api/attachments/${quebrada.id}/download`);
+const corpoDownload = await respDownload.json();
+ok("download responde 410 com código", respDownload.status === 410 && corpoDownload.code === "file_missing", JSON.stringify(corpoDownload));
+
+const relatorio = await (await fetch(`${BASE}/api/attachments/orphans`)).json();
+ok("relatório lista a prova quebrada", relatorio.rows.some((o: { id: number }) => o.id === quebrada.id), JSON.stringify(relatorio.rows));
+ok(
+  "relatório diz de qual missão é",
+  relatorio.rows.find((o: { id: number }) => o.id === quebrada.id)?.missionTitle === missaoDaProva.title,
+  JSON.stringify(relatorio.rows)
+);
+ok("nenhum arquivo ficou sem dono", relatorio.files.length === 0, JSON.stringify(relatorio.files));
+
+const limpeza = await (await fetch(`${BASE}/api/attachments/orphans/cleanup`, { method: "POST" })).json();
+ok("limpeza removeu a linha quebrada", limpeza.removed.some((o: { id: number }) => o.id === quebrada.id), JSON.stringify(limpeza));
+ok("a linha saiu do banco", (await prisma.attachment.findUnique({ where: { id: quebrada.id } })) === null);
+ok("virou lápide (o celular vai esquecer também)", Boolean(await prisma.tombstone.findFirst({ where: { entity: "attachment", entityId: String(quebrada.id) } })));
+
+r = await sincronizar(db);
+const semQuebrada = await db.getFirstAsync("SELECT id FROM attachments WHERE id = ?", quebrada.id);
+ok("o celular apagou a prova quebrada no pull", semQuebrada === null, JSON.stringify(semQuebrada));
+
+secao("upload que não chega inteiro ao disco não cria linha");
+// Corpo multipart que anuncia mais bytes do que envia: a conexão morre no meio, como um
+// Wi-Fi que cai com a prova subindo.
+const antesDoTruncado = await prisma.attachment.count({ where: { missionId: missaoDaProva.id } });
+const limite = "----upgrade" + Date.now();
+const cabeca =
+  `--${limite}\r\nContent-Disposition: form-data; name="files"; filename="cortada.txt"\r\n` +
+  `Content-Type: text/plain\r\n\r\n`;
+const corpoCompleto = cabeca + "bytes que nunca vão chegar por inteiro\r\n" + `--${limite}--\r\n`;
+
+let cortou = false;
+try {
+  await fetch(`${BASE}/api/missions/${missaoDaProva.id}/attachments`, {
+    method: "POST",
+    headers: {
+      "Content-Type": `multipart/form-data; boundary=${limite}`,
+      "Content-Length": String(Buffer.byteLength(corpoCompleto)),
+    },
+    // manda só o começo e fecha o socket: o servidor fica esperando o resto
+    body: new ReadableStream({
+      start(c) {
+        c.enqueue(new TextEncoder().encode(corpoCompleto.slice(0, cabeca.length + 10)));
+        c.error(new Error("conexão cortada no meio da prova"));
+      },
+    }),
+    duplex: "half",
+  } as RequestInit);
+} catch {
+  cortou = true;
+}
+ok("a requisição realmente morreu no meio", cortou);
+ok(
+  "upload cortado não deixou linha no banco",
+  (await prisma.attachment.count({ where: { missionId: missaoDaProva.id } })) === antesDoTruncado,
+  `${antesDoTruncado} antes`
+);
+const sobrasNoDisco = await (await fetch(`${BASE}/api/attachments/orphans`)).json();
+ok("nem prova quebrada nem arquivo perdido depois do corte", sobrasNoDisco.rows.length === 0 && sobrasNoDisco.files.length === 0, JSON.stringify(sobrasNoDisco));
+
+secao("lote recusado não deixa arquivo perdido no disco");
+// O multer grava os DOIS arquivos antes de o handler rodar. Recusada a missão, nenhum dos
+// dois pode ficar em data/uploads — sem linha que os aponte, ninguém os acharia de novo.
+const lote = new FormData();
+lote.append("files", new Blob(["prova um"], { type: "text/plain" }), "um.txt");
+lote.append("files", new Blob(["prova dois"], { type: "text/plain" }), "dois.txt");
+const resp404 = await fetch(`${BASE}/api/missions/999999/attachments`, { method: "POST", body: lote });
+ok("missão inexistente recusa o lote", resp404.status === 404, String(resp404.status));
+const depoisDoLote = await (await fetch(`${BASE}/api/attachments/orphans`)).json();
+ok("nenhum dos dois arquivos sobrou", depoisDoLote.files.length === 0, JSON.stringify(depoisDoLote.files));
+
+secao("guarda do upload: linha só nasce com arquivo inteiro no disco");
+// Único bloco que fala com o servidor por dentro: a garantia é contra falha de disco, e
+// disco cheio / arquivo truncado não se provoca por HTTP.
+process.env.UPLOAD_DIR = UPLOADS;
+const uploadsLib = requireFromApi("./src/lib/uploads.ts");
+const attService = requireFromApi("./src/services/attachments.service.ts");
+
+const meioArquivo = pathNode.join(UPLOADS, "meio-arquivo-teste.txt");
+fsNode.writeFileSync(meioArquivo, "12345");
+ok("recusa arquivo que nunca existiu", (await uploadsLib.uploadWritten("nunca-existiu.txt", 5)) === false);
+ok("recusa arquivo menor que o anunciado", (await uploadsLib.uploadWritten("meio-arquivo-teste.txt", 10)) === false);
+ok("aceita arquivo do tamanho certo", (await uploadsLib.uploadWritten("meio-arquivo-teste.txt", 5)) === true);
+fsNode.rmSync(meioArquivo);
+
+// arquivo que o multer JURA ter gravado, mas que não está lá
+const antesDaGuarda = await prisma.attachment.count({ where: { missionId: missaoDaProva.id } });
+let codigoRecusa = "";
+try {
+  await attService.addAttachment(missaoDaProva.id, {
+    filename: `fantasma-${Date.now()}.txt`,
+    originalname: "fantasma.txt",
+    mimetype: "text/plain",
+    size: 42,
+  });
+} catch (e) {
+  codigoRecusa = (e as { code?: string }).code ?? (e as Error).message;
+}
+ok("addAttachment recusa arquivo ausente", codigoRecusa === "upload_failed", codigoRecusa);
+ok(
+  "e não criou linha nenhuma",
+  (await prisma.attachment.count({ where: { missionId: missaoDaProva.id } })) === antesDaGuarda,
+  `${antesDaGuarda} antes`
+);
 
 secao("sem PC ao alcance");
 await trocarHost(db, "10.255.255.1", 4123); // endereço que não responde
